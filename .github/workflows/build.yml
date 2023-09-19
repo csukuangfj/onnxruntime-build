@@ -173,7 +173,7 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     permissions:
