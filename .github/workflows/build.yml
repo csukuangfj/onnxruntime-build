@@ -1,17 +1,20 @@
 name: Build
 
 on:
+
   workflow_dispatch:
     inputs:
       onnxruntime-version:
-        description: "ONNX Runtime version"
+        description: "ONNX Runtime version, e.g., 1.15.1"
         type: string
   push:
+    branches:
+      - linux
     tags:
       - v*.*.*
 
 env:
-  GCC_VERSION: 9
+  GCC_VERSION: 7
   CMAKE_VERSION: 3.26
   PYTHON_VERSION: 3.9
   NODE_VERSION: 16
@@ -38,7 +41,7 @@ jobs:
             post-build: tar -czvf $ARCHIVE_DIR/$ARCHIVE_NAME.tgz -C $OUTPUT_DIR .
 
           - target: linux-x64-static_lib
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-20.04
             build: ./build-static_lib.sh
             post-build: tar -czvf $ARCHIVE_DIR/$ARCHIVE_NAME.tgz -C $OUTPUT_DIR .
 
