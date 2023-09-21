@@ -13,6 +13,9 @@ on:
     tags:
       - v*.*.*
 
+permissions:
+  contents: write
+
 env:
   GCC_VERSION: 9
   CMAKE_VERSION: 3.26
@@ -192,6 +195,7 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
+          tag: "1.16.0"
           omitName: true
           body: "Official Release: [ONNX Runtime ${{ github.ref_name }}](https://github.com/microsoft/onnxruntime/releases/tag/${{ github.ref_name }})"
           artifacts: "*/*.*"
