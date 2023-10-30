@@ -40,6 +40,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-armv7
+
       - name: Update ONNX Runtime
         if: env.LATEST_ONNXRUNTIME_VERSION != env.CURRENT_ONNXRUNTIME_VERSION
         run: |
@@ -126,5 +131,55 @@ jobs:
       - name: Build onnxruntime for 32-bit ARM
         shell: bash
         run: |
-          export CMAKE_OPTIONS="-DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --version
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+
+          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
+
+      - name: Collect result
+        shell: bash
+        run: |
+          ls -lh output/static_lib/
+          ls -lh output/static_lib/include
+          ls -lh output/static_lib/lib
+
+          dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          mv -v output/static_lib/* $dst
+
+          zip -r ${dst}.zip $dst/
+
+      - name: Publish to huggingface
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+
+            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            cd huggingface
+            git pull
+
+            name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
+
+            mv -v ../$name .
+
+            git status
+            git add .
+            git commit -m "add $name"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          path: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
