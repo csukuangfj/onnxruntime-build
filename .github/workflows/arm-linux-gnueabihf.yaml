@@ -40,13 +40,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
+        id: cache-build-result
+        uses: actions/cache@v2
+        with:
+          path: onnxruntime-linux-arm-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-arm-linux-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+
       - name: ccache
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.os }}-armv7
 
       - name: Update ONNX Runtime
-        if: env.LATEST_ONNXRUNTIME_VERSION != env.CURRENT_ONNXRUNTIME_VERSION
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         run: |
           echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
           git submodule update --init --depth=1 onnxruntime
@@ -55,6 +63,7 @@ jobs:
           git checkout v$ONNXRUNTIME_VERSION
 
       - name: cache-toolchain
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         id: cache-toolchain
         uses: actions/cache@v3
         with:
@@ -62,7 +71,7 @@ jobs:
           key: gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf
 
       - name: Download toolchain
-        if: steps.cache-toolchain.outputs.cache-hit != 'true'
+        if: steps.cache-toolchain.outputs.cache-hit != 'true' && steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
           git lfs install
@@ -129,6 +138,7 @@ jobs:
           cmake --version
 
       - name: Build onnxruntime for 32-bit ARM
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -140,6 +150,7 @@ jobs:
           ./build-static_lib.sh
 
       - name: Collect result
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
           ls -lh output/static_lib/
@@ -153,6 +164,7 @@ jobs:
           zip -r ${dst}.zip $dst/
 
       - name: Publish to huggingface
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         uses: nick-fields/retry@v2
@@ -167,13 +179,15 @@ jobs:
             rm -rf huggingface
             export GIT_LFS_SKIP_SMUDGE=1
 
+            ls -lh
+
             git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
             cd huggingface
             git pull
 
             name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
 
-            mv -v ../$name .
+            mv -v ../../$name .
 
             git status
             git add .
@@ -181,6 +195,7 @@ jobs:
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
       - uses: actions/upload-artifact@v3
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
           name: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
           path: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
