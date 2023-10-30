@@ -147,6 +147,7 @@ jobs:
           ls -lh output/static_lib/lib
 
           dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          mkdir $dst
           mv -v output/static_lib/* $dst
 
           zip -r ${dst}.zip $dst/
