@@ -126,5 +126,5 @@ jobs:
       - name: Build onnxruntime for 32-bit ARM
         shell: bash
         run: |
-          export CMAKE_OPTIONS="-DCMAKE_SYSTEM_PROCESSOR=arm -Donnxruntime_CROSS_COMPILING=ON -Donnxruntime_ENABLE_CPUINFO=OFF --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
+          export CMAKE_OPTIONS="-DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_SYSTEM_PROCESSOR=arm -Donnxruntime_CROSS_COMPILING=ON -Donnxruntime_ENABLE_CPUINFO=OFF --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
           ./build-static_lib.sh
