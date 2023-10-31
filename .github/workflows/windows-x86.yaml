@@ -57,6 +57,12 @@ jobs:
           git fetch origin tag v$ONNXRUNTIME_VERSION
           git checkout v$ONNXRUNTIME_VERSION
 
+          if [[ $ONNXRUNTIME_VERSION =~ 1.16.[0-9] ]]; then
+            sed -i.bak '13d' onnxruntime/core/platform/windows/stacktrace.cc
+            git status
+            git diff
+          fi
+
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
