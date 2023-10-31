@@ -1,6 +1,9 @@
 name: macos-universal2
 
 on:
+  push:
+    branches:
+      - fix
   workflow_dispatch:
     inputs:
       version:
@@ -13,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.0' }}
 
 jobs:
   macos_x86_64:
