@@ -1,4 +1,4 @@
-name: arm-linux-gnueabihf
+name: aarch64-linux-gnueabihf
 
 on:
   workflow_dispatch:
@@ -16,8 +16,8 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.1' }}
 
 jobs:
-  arm_linux_gnueabihf:
-    name: Build onnxruntime lib for arm32 on ${{ matrix.os }}
+  aarch64_linux_gnueabihf:
+    name: Build onnxruntime lib for aarch64 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -32,14 +32,14 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v2
         with:
-          path: onnxruntime-linux-arm-${{ env.ONNXRUNTIME_VERSION }}
-          key: onnxruntime-arm-linux-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+          path: onnxruntime-linux-aarch64-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-linux-aarch64-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
 
       - name: ccache
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ matrix.os }}-armv7
+          key: ${{ matrix.os }}-aarch64
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -56,18 +56,18 @@ jobs:
         uses: actions/cache@v3
         with:
           path: toolchain
-          key: gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf
+          key: gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
 
       - name: Download toolchain
         if: steps.cache-toolchain.outputs.cache-hit != 'true' && steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          git lfs install
-          git clone https://huggingface.co/csukuangfj/arm-linux-gcc
-          ls -lh arm-linux-gcc
+          # wget wget https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+          wget https://huggingface.co/csukuangfj/sherpa-ncnn-toolchains/resolve/main/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+
 
           mkdir $GITHUB_WORKSPACE/toolchain
-          tar xvf ./arm-linux-gcc/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf.tar.xz --strip-components 1 -C $GITHUB_WORKSPACE/toolchain
+          tar xvf ./gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz --strip-components 1 -C $GITHUB_WORKSPACE/toolchain
 
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -95,14 +95,14 @@ jobs:
           echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
           ls -lh "$GITHUB_WORKSPACE/toolchain/bin"
 
-          echo "CC=arm-none-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
-          echo "CXX=arm-none-linux-gnueabihf-g++" >> "$GITHUB_ENV"
+          echo "CC=aarch64-none-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-none-linux-gnueabihf-g++" >> "$GITHUB_ENV"
 
       - name: Display toolchain info
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          arm-none-linux-gnueabihf-gcc --version
+          aarch64-none-linux-gnueabihf-gcc --version
 
       - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -125,7 +125,7 @@ jobs:
           python3 -m pip install cmake
           cmake --version
 
-      - name: Build onnxruntime for 32-bit ARM
+      - name: Build onnxruntime for aarch64
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
@@ -134,7 +134,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/aarch64-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
 
       - name: Collect result
@@ -145,7 +145,7 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
@@ -173,7 +173,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
+            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}.zip
 
             mv -v ../../$name .
 
@@ -185,5 +185,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
-          path: onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          name: onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}
+          path: onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}
