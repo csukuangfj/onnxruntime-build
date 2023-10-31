@@ -111,7 +111,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-          export CMAKE_OPTIONS="-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=ON -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
 
       - name: Collect result
@@ -121,6 +121,8 @@ jobs:
           ls -lh output/static_lib/
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
+
+          cp -v onnxruntime/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h output/static_lib/include
 
           dst=onnxruntime-osx-universal2-static_lib-${ONNXRUNTIME_VERSION}
           mkdir $dst
