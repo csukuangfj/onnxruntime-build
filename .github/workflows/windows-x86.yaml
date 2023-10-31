@@ -49,6 +49,7 @@ jobs:
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
         run: |
           echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
           git submodule update --init --depth=1 onnxruntime
