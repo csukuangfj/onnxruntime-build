@@ -168,5 +168,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-win-x86-static_lib-${ONNXRUNTIME_VERSION}
-          path: onnxruntime-win-x86-static_lib-${ONNXRUNTIME_VERSION}
+          name: onnxruntime-win-x86-static_lib
+          path: onnxruntime-win-x86-static_lib*.tar.bz2
