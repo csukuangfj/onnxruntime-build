@@ -175,7 +175,7 @@ jobs:
 
             name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
 
-            mv -v ../../$name .
+            mv -v ../$name .
 
             git status
             git add .

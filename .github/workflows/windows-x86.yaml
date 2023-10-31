@@ -145,7 +145,7 @@ jobs:
 
             name=onnxruntime-win-x86-static_lib-${ONNXRUNTIME_VERSION}.zip
 
-            mv -v ../../$name .
+            mv -v ../$name .
 
             git status
             git add .
