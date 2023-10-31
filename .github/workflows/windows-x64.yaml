@@ -63,10 +63,10 @@ jobs:
         run: |
           # see ./cmake/deps.txt
           if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
-            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-win64.zip
+            curl -o protoc-3.20.3-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-win64.zip
             unzip protoc-3.20.3-win64.zip
           elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56].[0-9] ]]; then
-            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
+            curl -o protoc-21.12-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
             unzip protoc-21.12-win64.zip
           else
             echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
