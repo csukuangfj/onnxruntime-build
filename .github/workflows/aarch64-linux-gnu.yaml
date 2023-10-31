@@ -1,4 +1,4 @@
-name: aarch64-linux-gnueabihf
+name: aarch64-linux-gnu
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.1' }}
 
 jobs:
-  aarch64_linux_gnueabihf:
+  aarch64_linux_gnu:
     name: Build onnxruntime lib for aarch64 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -94,14 +94,15 @@ jobs:
           echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
           ls -lh "$GITHUB_WORKSPACE/toolchain/bin"
 
-          echo "CC=aarch64-none-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
-          echo "CXX=aarch64-none-linux-gnueabihf-g++" >> "$GITHUB_ENV"
+          echo "CC=aarch64-none-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-none-linux-gnu-g++" >> "$GITHUB_ENV"
 
       - name: Display toolchain info
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          aarch64-none-linux-gnueabihf-gcc --version
+          ls -lh $GITHUB_WORKSPACE/toolchain/bin
+          aarch64-none-linux-gnu-gcc --version
 
       - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -133,7 +134,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/aarch64-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/aarch64-linux-gnu.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
 
       - name: Collect result
