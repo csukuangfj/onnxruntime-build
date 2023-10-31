@@ -132,7 +132,7 @@ jobs:
           mkdir $dst
           mv -v output/static_lib/* $dst
 
-          zip -r ${dst}.zip $dst/
+          tar cjvf $dst.tar.bz2 $dst
 
       - name: Publish to huggingface
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -156,7 +156,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-win-x86-static_lib-${ONNXRUNTIME_VERSION}.zip
+            name=onnxruntime-win-x86-static_lib-${ONNXRUNTIME_VERSION}.tar.bz2
 
             mv -v ../$name .
 
