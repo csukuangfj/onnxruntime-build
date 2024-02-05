@@ -35,8 +35,6 @@ $ONNXRUNTIME_SOURCE_DIR/build.sh \
 
 mkdir -p $OUTPUT_DIR/include
 cp $ONNXRUNTIME_SOURCE_DIR/include/onnxruntime/core/session/*.h $OUTPUT_DIR/include
-cp $ONNXRUNTIME_SOURCE_DIR/include/onnxruntime/providers/cpu/cpu_provider_factory.h $OUTPUT_DIR/include
-cp $ONNXRUNTIME_SOURCE_DIR/include/onnxruntime/core/framework/provider_options.h $OUTPUT_DIR/include
 
 mkdir -p $OUTPUT_DIR/lib
 cp $BUILD_DIR/Release/libonnxruntime_webassembly.a $OUTPUT_DIR/lib/libonnxruntime.a
