@@ -9,7 +9,7 @@ on:
         type: string
   push:
     branches:
-      - linux
+      - linux2
     tags:
       - v*.*.*
 
@@ -22,6 +22,7 @@ env:
   PYTHON_VERSION: 3.9
   NODE_VERSION: 16
   XCODE_VERSION: 14.2
+  MACOSX_DEPLOYMENT_TARGET: 10.13
 
 defaults:
   run:

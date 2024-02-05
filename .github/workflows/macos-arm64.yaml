@@ -1,0 +1,165 @@
+name: macos-arm64
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version information（e.g., 1.16.1）"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  ONNXRUNTIME_VERSION:
+    |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.1' }}
+
+jobs:
+  macos_arm64:
+    name: Build onnxruntime lib for macOS arm64 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        python-version: ["3.8"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
+        id: cache-build-result
+        uses: actions/cache@v2
+        with:
+          path: onnxruntime-osx-arm64-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-osx-arm64-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+
+      - name: ccache
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-arm64
+
+      - name: Update ONNX Runtime
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        run: |
+          echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
+          git submodule update --init --depth=1 onnxruntime
+          cd onnxruntime
+          git fetch origin tag v$ONNXRUNTIME_VERSION
+          git checkout v$ONNXRUNTIME_VERSION
+
+      - name: Download protoc
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          # see ./cmake/deps.txt
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-osx-x86_64.zip
+            unzip protoc-3.20.3-osx-x86_64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56].[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-osx-x86_64.zip
+            unzip protoc-21.12-osx-x86_64.zip
+          else
+            echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
+            exit 1
+          fi
+
+          ./bin/protoc --version
+
+      - name: Set environment variable
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
+
+      - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          protoc --version
+
+      - name: Show current directory
+        shell: bash
+        run: |
+          ls -lh
+          echo $PWD
+
+      - name: Install dependencies
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          python3 -m pip install cmake
+          cmake --version
+
+      - name: Build onnxruntime for macOS arm64
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --version
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+
+          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=ON -DCMAKE_OSX_ARCHITECTURES='arm64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          ./build-static_lib.sh
+
+      - name: Collect result
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ls -lh output/static_lib/
+          ls -lh output/static_lib/include
+          ls -lh output/static_lib/lib
+
+          cp -v onnxruntime/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h output/static_lib/include
+
+          dst=onnxruntime-osx-arm64-static_lib-${ONNXRUNTIME_VERSION}
+          mkdir $dst
+          mv -v output/static_lib/* $dst
+
+          zip -r ${dst}.zip $dst/
+
+      - name: Publish to huggingface
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+
+            ls -lh
+
+            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            cd huggingface
+            git pull
+
+            name=onnxruntime-osx-arm64-static_lib-${ONNXRUNTIME_VERSION}.zip
+
+            cp -v ../$name .
+
+            git status
+            git add .
+            git commit -m "add $name"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+
+      - uses: actions/upload-artifact@v3
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        with:
+          name: onnxruntime-osx-arm64-static_lib-${ONNXRUNTIME_VERSION}
+          path: onnxruntime-osx-arm64-static_lib*
