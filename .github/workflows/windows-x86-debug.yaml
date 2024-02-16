@@ -1,0 +1,189 @@
+name: windows-x86-debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version information（e.g., 1.17.0）"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  ONNXRUNTIME_VERSION:
+    |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.17.0' }}
+
+jobs:
+  windows_x86_debug:
+    name: Windows x86 debug
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2019]
+        python-version: ["3.8"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
+        id: cache-build-result
+        uses: actions/cache@v2
+        with:
+          path: onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-win-x86-debug-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+
+      - name: ccache
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-x86
+
+      - name: Update ONNX Runtime
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo ${{ env.ONNXRUNTIME_VERSION }} > ONNXRUNTIME_VERSION
+          git submodule update --init --depth=1 onnxruntime
+          cd onnxruntime
+          git fetch origin tag v${{ env.ONNXRUNTIME_VERSION }}
+          git checkout v${{ env.ONNXRUNTIME_VERSION }}
+
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.16.[0-9] ]]; then
+            sed -i.bak '13d' onnxruntime/core/platform/windows/stacktrace.cc
+            git status
+            git diff
+          fi
+
+      - name: Download protoc
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          # see ./cmake/deps.txt
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
+            curl -SL -o protoc-3.20.3-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-win64.zip
+            ls -lh
+            unzip protoc-3.20.3-win64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[567].[0-9] ]]; then
+            curl -SL -o protoc-21.12-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
+            ls -lh
+            unzip protoc-21.12-win64.zip
+          else
+            echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
+            exit 1
+          fi
+
+          ./bin/protoc --version
+
+      - name: Set environment variable
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
+
+      - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          protoc --version
+
+      - name: Show current directory
+        shell: bash
+        run: |
+          ls -lh
+          echo $PWD
+
+      - name: Install dependencies
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          python3 -m pip install cmake
+          cmake --version
+
+      - name: Build onnxruntime for Windows x86
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --version
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          export CMAKE_BUILD_TYPE=Debug
+
+          export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc'
+          ./build-static_lib.sh
+
+      - name: Collect result
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ls -lh output/static_lib/
+          ls -lh output/static_lib/include
+          ls -lh output/static_lib/lib
+
+          dst=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
+          mkdir $dst
+          mv -v output/static_lib/* $dst
+
+      - name: zip results
+        shell: bash
+        run: |
+          ls -lh
+          dst=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
+          tar cjvf $dst.tar.bz2 $dst
+          ls -lh
+
+      - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file_glob: true
+          file: "./*.tar.bz2"
+          overwrite: true
+          repo_name: csukuangfj/onnxruntime-libs
+          repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
+          tag: v${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Publish to huggingface
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+
+            ls -lh
+
+            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            cd huggingface
+            git pull
+
+            name=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
+
+            cp -v ../$name .
+
+            git status
+            git add .
+            git commit -m "add $name"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+
+      - uses: actions/upload-artifact@v3
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        with:
+          name: onnxruntime-win-x86-static_lib-debug
+          path: onnxruntime-win-x86-static_lib*.tar.bz2

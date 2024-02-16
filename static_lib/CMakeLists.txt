@@ -6,6 +6,18 @@ set(ONNX_USE_MSVC_STATIC_RUNTIME ON)
 set(protobuf_MSVC_STATIC_RUNTIME ON)
 set(onnxruntime_BUILD_SHARED_LIB ON)
 
+if(NOT BUILD_SHARED_LIBS AND MSVC)
+  # see https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
+  # https://stackoverflow.com/questions/14172856/compile-with-mt-instead-of-md-using-cmake
+  if(MSVC)
+      add_compile_options(
+          $<$<CONFIG:>:/MT> #---------|
+          $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
+          $<$<CONFIG:Release>:/MT> #--|
+      )
+  endif()
+endif()
+
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 
 add_subdirectory(${ONNXRUNTIME_SOURCE_DIR}/cmake onnxruntime EXCLUDE_FROM_ALL)
