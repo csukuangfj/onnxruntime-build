@@ -17,13 +17,13 @@ env:
 
 jobs:
   linux:
-    name: Build onnxruntime lib for Linux x64 on ${{ matrix.os }}
+    name: Linux x64 ${{ matrix.os }} ${{ matrix.gcc_version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04]
-        gcc_version: ["7"]
+        gcc_version: ["7", "8", "9", "10", "11", "12", "13"]
 
     steps:
       - name: Checkout
@@ -131,7 +131,7 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}
+          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-gcc-${{ matrix.gcc_version }}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
@@ -170,7 +170,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}.zip
+            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-${{ matrix.gcc_version }}.zip
 
             cp -v ../$name .
 
@@ -182,5 +182,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}
+          name: onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-${{ matrix.gcc_version }}
           path: onnxruntime-linux-x64-static_lib*
