@@ -17,13 +17,14 @@ env:
 
 jobs:
   windows_x86_debug:
-    name: Windows x86 debug
+    name: Windows x86 ${{ matrix.build_type }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2019]
         python-version: ["3.8"]
+        build_type: ["Debug", "RelWithDebInfo", "MinSizeRel"]
 
     steps:
       - name: Checkout
@@ -38,8 +39,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v2
         with:
-          path: onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
-          key: onnxruntime-win-x86-debug-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+          path: onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-win-x86-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
 
       - name: ccache
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -116,7 +117,7 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          export CMAKE_BUILD_TYPE=Debug
+          export CMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
           export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc'
           ./build-static_lib.sh
@@ -129,7 +130,7 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
+          dst=onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
@@ -137,7 +138,7 @@ jobs:
         shell: bash
         run: |
           ls -lh
-          dst=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}
+          dst=onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
@@ -173,7 +174,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-win-x86-static_lib-debug-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
+            name=onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
 
             cp -v ../$name .
 
@@ -185,5 +186,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-win-x86-static_lib-debug
+          name: onnxruntime-win-x86-static_lib-${{ matrix.build_type }}
           path: onnxruntime-win-x86-static_lib*.tar.bz2
