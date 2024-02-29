@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information（e.g., 1.16.1）"
+        description: "Version information（e.g., 1.17.1）"
         required: true
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.16.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.17.1' }}
 
 jobs:
   linux:
@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04]
-        gcc_version: ["7", "8", "9", "10", "11", "12", "13"]
+        gcc_version: ["8", "9", "10", "11", "13"]
 
     steps:
       - name: Checkout
