@@ -125,6 +125,12 @@ jobs:
 
           zip -r ${dst}.zip $dst/
 
+      - uses: actions/upload-artifact@v3
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        with:
+          name: onnxruntime-wasm-static_lib-simd-${ONNXRUNTIME_VERSION}
+          path: onnxruntime-wasm-static_lib-simd-*
+
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: svenstaro/upload-release-action@v2
@@ -167,8 +173,3 @@ jobs:
             git commit -m "add wasm simd $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
-      - uses: actions/upload-artifact@v3
-        if: steps.cache-build-result.outputs.cache-hit != 'true'
-        with:
-          name: onnxruntime-wasm-static_lib-simd-${ONNXRUNTIME_VERSION}
-          path: onnxruntime-wasm-static_lib-simd-*

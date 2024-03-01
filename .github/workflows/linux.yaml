@@ -48,8 +48,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v2
         with:
-          path: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.gcc_version }}
-          key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.gcc_version }}-cache-v1
+          path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-gcc-${{ matrix.gcc_version }}
+          key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-gcc-${{ matrix.gcc_version }}-cache-v1
 
       - name: ccache
         if: steps.cache-build-result.outputs.cache-hit != 'true'
