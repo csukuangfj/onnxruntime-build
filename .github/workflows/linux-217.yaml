@@ -1,4 +1,4 @@
-name: linux
+name: linux-glibc217
 
 on:
   push:
@@ -19,7 +19,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.17.1' }}
 
 jobs:
-  linux:
+  linux-glibc217:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
