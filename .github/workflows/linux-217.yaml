@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information（e.g., 1.17.1）"
+        description: "Version information (e.g., 1.18.0)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.17.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.18.0' }}
 
 jobs:
   linux-glibc217:
@@ -47,6 +47,9 @@ jobs:
           git fetch origin tag v$ONNXRUNTIME_VERSION
           git checkout v$ONNXRUNTIME_VERSION
 
+          sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
+          git diff
+
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
@@ -55,7 +58,7 @@ jobs:
           if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
             wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
             unzip protoc-3.20.3-linux-x86_64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[567].[0-9] ]]; then
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[5678].[0-9] ]]; then
             wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
             unzip protoc-21.12-linux-x86_64.zip
           else

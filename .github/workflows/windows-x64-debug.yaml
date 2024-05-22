@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information（e.g., 1.16.1）"
+        description: "Version information (e.g., 1.18.0)"
         required: true
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.17.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.18.0' }}
 
 jobs:
   windows_x64_debug:
@@ -74,7 +74,7 @@ jobs:
             ls -lh
             file protoc-3.20.3-win64.zip
             unzip protoc-3.20.3-win64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[567].[0-9] ]]; then
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[5678].[0-9] ]]; then
             curl -SL -o protoc-21.12-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
             ls -lh
             file protoc-21.12-win64.zip
