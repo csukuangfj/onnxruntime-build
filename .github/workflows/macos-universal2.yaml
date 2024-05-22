@@ -1,9 +1,6 @@
 name: macos-universal2
 
 on:
-  push:
-    branches:
-      - fix
   workflow_dispatch:
     inputs:
       version:

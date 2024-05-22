@@ -1,9 +1,6 @@
 name: wasm-simd
 
 on:
-  push:
-    branches:
-      - wasm
   workflow_dispatch:
     inputs:
       version:

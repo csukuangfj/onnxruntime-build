@@ -1,9 +1,6 @@
 name: aarch64-glibc217
 
 on:
-  push:
-    branches:
-      - onnxruntime-1.18.0-1
   workflow_dispatch:
     inputs:
       version:

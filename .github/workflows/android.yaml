@@ -1,10 +1,6 @@
 name: android
 
 on:
-  push:
-    branches:
-      - upload
-
   workflow_dispatch:
     inputs:
       version:

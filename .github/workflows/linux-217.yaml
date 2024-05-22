@@ -1,9 +1,6 @@
 name: linux-glibc217
 
 on:
-  push:
-    branches:
-      - linux-217
   workflow_dispatch:
     inputs:
       version:
