@@ -32,7 +32,15 @@ echo "pwd: $PWD"
         git checkout v$ONNXRUNTIME_VERSION
     fi
     git submodule update --init --depth=1 --recursive
+    echo "inside pwd: $PWD"
+    echo "---"
+    ls -lh
+    echo "---"
+
+    sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 )
+echo "pwd: $PWD"
+ls -lh
 
 cmake \
     -S $SOURCE_DIR \

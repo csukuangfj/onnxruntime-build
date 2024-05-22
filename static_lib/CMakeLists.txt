@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
