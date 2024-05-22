@@ -62,12 +62,10 @@ jobs:
         if: steps.cache-toolchain.outputs.cache-hit != 'true' && steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          git lfs install
-          git clone https://huggingface.co/csukuangfj/arm-linux-gcc
-          ls -lh arm-linux-gcc
-
+          curl -SL -O https://huggingface.co/csukuangfj/arm-linux-gcc/resolve/main/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf.tar.xz
           mkdir $GITHUB_WORKSPACE/toolchain
-          tar xvf ./arm-linux-gcc/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf.tar.xz --strip-components 1 -C $GITHUB_WORKSPACE/toolchain
+          tar xvf ./gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf.tar.xz --strip-components 1 -C $GITHUB_WORKSPACE/toolchain
+          rm -v gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf.tar.xz
 
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
