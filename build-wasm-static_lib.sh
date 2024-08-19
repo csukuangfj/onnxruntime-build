@@ -19,6 +19,14 @@ cd $(dirname $0)
         git checkout v$ONNXRUNTIME_VERSION
     fi
     git submodule update --init --depth=1 --recursive
+
+    pushd $ONNXRUNTIME_SOURCE_DIR
+    ls -lh
+    cd core/mlas/lib
+    echo  '#include "core/common/common.h"' | cat - q4common.h  > a.txt
+    mv a.txt q4common.h
+    git diff ./q4common.h
+    popd
 )
 
 rm -f $BUILD_DIR/Release/libonnxruntime_webassembly.a
