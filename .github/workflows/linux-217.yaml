@@ -91,6 +91,30 @@ jobs:
             run: |
               uname -a
               gcc --version
+
+              echo "update gcc"
+
+              # See https://github.com/nealef/clefos/issues/9
+              echo "multilib_policy=best" >> /etc/yum.conf
+              echo "skip_missing_names_on_install=False" >> /etc/yum.conf
+              sed -i '/^override_install_langs=/d' /etc/yum.conf
+              yum -y update
+              yum -y install yum-utils curl
+              yum-config-manager --enable extras
+              yum -y install centos-release-scl-rh
+              yum -y install devtoolset-11-binutils devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-gcc-gfortran
+
+              # see https://stackoverflow.com/questions/72904802/can-not-find-required-gcc-version-after-devtoolset-installation
+              ls -lh /opt/rh/devtoolset-11
+
+              source /opt/rh/devtoolset-11/enable
+
+              echo 'which gcc'
+              which gcc
+
+              echo 'gcc --version'
+              gcc --version
+
               find /opt -name "python*"
               export PATH=/opt/_internal/cpython-3.8.20/bin:$PATH
               python3 --version
