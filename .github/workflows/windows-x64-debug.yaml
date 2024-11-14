@@ -74,7 +74,7 @@ jobs:
             ls -lh
             file protoc-3.20.3-win64.zip
             unzip protoc-3.20.3-win64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] ]]; then
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.20.[0-9] ]]; then
             curl -SL -o protoc-21.12-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
             ls -lh
             file protoc-21.12-win64.zip
