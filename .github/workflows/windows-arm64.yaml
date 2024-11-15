@@ -1,13 +1,10 @@
 name: windows-arm64
 
 on:
-  push:
-    branches:
-      - win-arm64-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.18.3)"
+        description: "Version information (e.g., 1.20.0)"
         required: true
 
 permissions:
@@ -16,7 +13,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.18.3' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
 
 jobs:
   windows_arm64:
@@ -127,8 +124,6 @@ jobs:
           # /D/a/onnxruntime-build/onnxruntime-build/bin/protoc
           /D/a/onnxruntime-build/onnxruntime-build/bin/protoc --version
 
-          # export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc'
-          # export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=D:\a\onnxruntime-build\onnxruntime-build\bin\protoc'
           export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
 
           ./build-static_lib.sh
