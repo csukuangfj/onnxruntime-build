@@ -20,12 +20,13 @@ env:
 
 jobs:
   android-static:
-    name: android static lib
+    name: android static lib ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
+        arch: [arm64-v8a, armeabi-v7a, x86, x86_64]
 
     steps:
       - name: Checkout
@@ -40,7 +41,7 @@ jobs:
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: android-static-${{ env.ONNXRUNTIME_VERSION }}
+          key: android-static-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.arch }}
 
       - name: Display NDK HOME
         shell: bash
@@ -102,20 +103,75 @@ jobs:
           python3 -m pip install cmake
           cmake --version
 
-      - name: Build onnxruntime for android x86_64
+      - name: Build onnxruntime for android ${{ matrix.arch}}
         shell: bash
         run: |
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
 
-          export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-21"
+          arch=${{ matrix.arch }}
+
+          export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$arch -DANDROID_PLATFORM=android-21"
 
           ./build-static_lib.sh
 
-      - name: Collect result
+      - name: Collect result ${{ matrix.arch }}
         shell: bash
         run: |
           ls -lh output/static_lib/
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
+
+          dst=onnxruntime-android-${{ matrix.arch }}-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          mkdir $dst
+
+          mv -v output/static_lib/* $dst
+
+          zip -r ${dst}.zip $dst/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sherpa-onnx-android-${{ matrix.arch }}
+          path: ./onnxruntime*.zip
+
+      - name: Upload v${{ env.ONNXRUNTIME_VERSION }} ${{ matrix.arch }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file_glob: true
+          file: "./onnxruntime*.zip"
+          overwrite: true
+          repo_name: csukuangfj/onnxruntime-libs
+          repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
+          tag: v${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Publish to huggingface
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+            export GIT_CLONE_PROTECTION_ACTIVE=false
+
+            ls -lh
+
+            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            cd huggingface
+            git pull
+
+            name=onnxruntime-android-${{ matrix.arch }}-static_lib-${{ env.ONNXRUNTIME_VERSION }}.zip
+
+            cp -v ../$name .
+
+            git status
+            git add .
+            git commit -m "add $name"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
