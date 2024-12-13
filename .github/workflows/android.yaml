@@ -16,8 +16,8 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
 
 jobs:
-  windows_x64:
-    name: Download android onnxruntime lib
+  android-shared:
+    name: android shared libs
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
