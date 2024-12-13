@@ -43,11 +43,11 @@ jobs:
         with:
           key: android-static-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.arch }}
 
-      - uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r22
-          add-to-path: false
+      # - uses: nttld/setup-ndk@v1
+      #   id: setup-ndk
+      #   with:
+      #     ndk-version: r22
+      #     add-to-path: false
 
       - name: Display NDK HOME
         shell: bash
@@ -118,8 +118,9 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
 
-          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
-          export ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
+          # For ndk 22
+          # export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+          # export ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
 
           arch=${{ matrix.arch }}
 
