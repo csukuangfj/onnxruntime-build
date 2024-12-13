@@ -44,10 +44,10 @@ jobs:
           key: android-static-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.arch }}
 
       - uses: nttld/setup-ndk@v1
-          id: setup-ndk
-          with:
-            ndk-version: r22
-            add-to-path: false
+        id: setup-ndk
+        with:
+          ndk-version: r22
+          add-to-path: false
 
       - name: Display NDK HOME
         shell: bash
