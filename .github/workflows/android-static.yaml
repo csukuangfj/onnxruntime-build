@@ -108,3 +108,14 @@ jobs:
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
+
+          export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-21"
+
+          ./build-static_lib.sh
+
+      - name: Collect result
+        shell: bash
+        run: |
+          ls -lh output/static_lib/
+          ls -lh output/static_lib/include
+          ls -lh output/static_lib/lib
