@@ -43,12 +43,20 @@ jobs:
         with:
           key: android-static-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.arch }}
 
+      - uses: nttld/setup-ndk@v1
+          id: setup-ndk
+          with:
+            ndk-version: r22
+            add-to-path: false
+
       - name: Display NDK HOME
         shell: bash
         run: |
           echo "ANDROID_NDK_LATEST_HOME: ${ANDROID_NDK_LATEST_HOME}"
           ls -lh ${ANDROID_NDK_LATEST_HOME}
 
+          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+          echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
           echo "ANDROID_NDK: $ANDROID_NDK"
 
       - name: Update ONNX Runtime
@@ -109,6 +117,9 @@ jobs:
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
+
+          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+          export ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
 
           arch=${{ matrix.arch }}
 
