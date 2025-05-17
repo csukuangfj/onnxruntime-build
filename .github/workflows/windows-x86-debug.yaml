@@ -1,10 +1,13 @@
 name: windows-x86-debug
 
 on:
+  push:
+    branches:
+      - v1.22.0-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.20.0)"
+        description: "Version information (e.g., 1.22.0)"
         required: true
 
 permissions:
@@ -13,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
   windows_x86_debug:
@@ -23,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2019]
-        python-version: ["3.8"]
+        python-version: ["3.10"]
         build_type: ["Debug", "RelWithDebInfo", "MinSizeRel"]
 
     steps:
@@ -37,7 +40,7 @@ jobs:
 
       - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
         id: cache-build-result
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           key: onnxruntime-win-x86-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
@@ -73,7 +76,7 @@ jobs:
             curl -SL -o protoc-3.20.3-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-win64.zip
             ls -lh
             unzip protoc-3.20.3-win64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.20.[0-9] ]]; then
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.2[0-9].[0-9] ]]; then
             curl -SL -o protoc-21.12-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-win64.zip
             ls -lh
             unzip protoc-21.12-win64.zip
@@ -177,15 +180,17 @@ jobs:
             git pull
 
             name=onnxruntime-win-x86-static_lib-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
+            version=${{ env.ONNXRUNTIME_VERSION }}
+            mkdir -p $version
 
-            cp -v ../$name .
+            cp -v ../$name $version/
 
             git status
             git add .
             git commit -m "add $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
           name: onnxruntime-win-x86-static_lib-${{ matrix.build_type }}

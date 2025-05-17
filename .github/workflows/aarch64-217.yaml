@@ -1,10 +1,13 @@
 name: aarch64-glibc217
 
 on:
+  push:
+    branches:
+      - v1.22.0-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.20.0)"
+        description: "Version information (e.g., 1.22.0)"
         required: true
 
 permissions:
@@ -13,30 +16,24 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
-  linux-glibc217:
+  aarch64-glibc217:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04-arm]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        if: steps.cache-build-result.outputs.cache-hit != 'true'
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: all
-
       - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
         id: cache-build-result
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
           key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
@@ -54,7 +51,7 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            image: quay.io/pypa/manylinux2014_aarch64
+            image: quay.io/pypa/manylinux_2_28_aarch64 # onnxruntime v1.22.0 requires gcc >= 11
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
@@ -62,7 +59,7 @@ jobs:
               uname -a
               gcc --version
               find /opt -name "python*"
-              export PATH=/opt/_internal/cpython-3.8.20/bin:$PATH
+              export PATH=/opt/_internal/cpython-3.10.17/bin:$PATH
               python3 --version
               python3 -m pip install ninja cmake
 
@@ -76,6 +73,7 @@ jobs:
               echo "----------"
 
               export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
+              export PARALLEL_JOB_COUNT=1
 
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
@@ -132,23 +130,28 @@ jobs:
             export GIT_LFS_SKIP_SMUDGE=1
             export GIT_CLONE_PROTECTION_ACTIVE=false
 
+            version=${{ env.ONNXRUNTIME_VERSION }}
+
             ls -lh
 
+            rm -rf huggingface
             git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
             cd huggingface
             git pull
 
             name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17.zip
 
-            cp -v ../$name .
+            mkdir -p $version
+
+            cp -v ../$name $version/
 
             git status
             git add .
             git commit -m "add $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17
+          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
           path: onnxruntime-linux-aarch64-static_lib*

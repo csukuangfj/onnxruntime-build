@@ -1,10 +1,13 @@
 name: linux-glibc217
 
 on:
+  push:
+    branches:
+      - v1.22.0-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.20.0)"
+        description: "Version information (e.g., 1.22.0)"
         required: true
 
 permissions:
@@ -13,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
   linux-glibc217:
@@ -30,7 +33,7 @@ jobs:
 
       - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
         id: cache-build-result
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
           key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
@@ -52,7 +55,7 @@ jobs:
           if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
             wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
             unzip protoc-3.20.3-linux-x86_64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.20.[0-9] ]]; then
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.2[0-9].[0-9] ]]; then
             wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
             unzip protoc-21.12-linux-x86_64.zip
           else
@@ -116,7 +119,7 @@ jobs:
               gcc --version
 
               find /opt -name "python*"
-              export PATH=/opt/_internal/cpython-3.8.20/bin:$PATH
+              export PATH=/opt/_internal/cpython-3.10.17/bin:$PATH
               python3 --version
               python3 -m pip install ninja cmake
 
@@ -158,6 +161,8 @@ jobs:
 
           zip -r ${dst}.zip $dst/
 
+          ls -lh $dst.zip
+
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: svenstaro/upload-release-action@v2
@@ -194,15 +199,18 @@ jobs:
 
             name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17.zip
 
-            cp -v ../$name .
+            version=${{ env.ONNXRUNTIME_VERSION }}
+            mkdir -p $version
+
+            cp -v ../$name ./$version/
 
             git status
             git add .
             git commit -m "add $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17
+          name: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
           path: onnxruntime-linux-x64-static_lib*
