@@ -1,10 +1,13 @@
 name: macos-universal2
 
 on:
+  push:
+    branches:
+      - v1.22.0-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.20.0)"
+        description: "Version information (e.g., 1.22.0)"
         required: true
 
 permissions:
@@ -13,30 +16,30 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
-  macos_x86_64:
+  macos_universal2:
     name: Build onnxruntime lib for macOS universal2 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest]
-        python-version: ["3.8"]
+        python-version: ["3.10"]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
         id: cache-build-result
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: onnxruntime-osx-universal2-${{ env.ONNXRUNTIME_VERSION }}
           key: onnxruntime-osx-universal2-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
@@ -64,9 +67,9 @@ jobs:
           if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
             wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-osx-x86_64.zip
             unzip protoc-3.20.3-osx-x86_64.zip
-          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.20.[0-9] ]]; then
-            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-osx-x86_64.zip
-            unzip protoc-21.12-osx-x86_64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.2[0-9].[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-osx-universal_binary.zip
+            unzip protoc-21.12-osx-universal_binary.zip
           else
             echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
             exit 1
@@ -96,7 +99,7 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          python3 -m pip install cmake
+          # python3 -m pip install cmake
           cmake --version
 
       - name: Build onnxruntime for macOS universal2
@@ -126,6 +129,7 @@ jobs:
           mv -v output/static_lib/* $dst
 
           zip -r ${dst}.zip $dst/
+          ls -lh $dst.zip
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -162,16 +166,18 @@ jobs:
             git pull
 
             name=onnxruntime-osx-universal2-static_lib-${ONNXRUNTIME_VERSION}.zip
+            version=${{ env.ONNXRUNTIME_VERSION }}
+            mkdir -p $version
 
-            cp -v ../$name .
+            cp -v ../$name $version/
 
             git status
             git add .
             git commit -m "add $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-osx-universal2-static_lib-${ONNXRUNTIME_VERSION}
+          name: onnxruntime-osx-universal2-static_lib-${{ env.ONNXRUNTIME_VERSION }}
           path: onnxruntime-osx-universal2-static_lib*

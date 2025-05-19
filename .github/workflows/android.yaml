@@ -1,10 +1,13 @@
 name: android
 
 on:
+  push:
+    branches:
+      - v1.22.0-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.20.0)"
+        description: "Version information (e.g., 1.22.0)"
         required: true
 
 permissions:
@@ -13,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
   android-shared:
@@ -35,6 +38,7 @@ jobs:
           wget -q https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/$version/onnxruntime-android-$version.aar
           mv onnxruntime-android-$version.aar onnxruntime-android-$version.zip
           unzip onnxruntime-android-$version.zip
+          ls -lh
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         uses: svenstaro/upload-release-action@v2
@@ -63,9 +67,9 @@ jobs:
             export GIT_LFS_SKIP_SMUDGE=1
             export GIT_CLONE_PROTECTION_ACTIVE=false
 
-            ls -lh
-
             git clone https://huggingface.co/csukuangfj/android-onnxruntime-libs huggingface
+
+            ls -lh
             cd huggingface
             git pull
 
@@ -76,8 +80,8 @@ jobs:
             dst=v$version
             rm -rf $dst
             mkdir $dst
-            mv -v ../../$src/headers $dst/
-            mv -v ../../$src/jni $dst/
+            mv -v ../$src/headers $dst/ || mv -v ../headers $dst/
+            mv -v ../$src/jni $dst/ || mv ../jni $dst/
 
             git status
             git add .

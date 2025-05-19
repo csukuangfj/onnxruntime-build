@@ -17,6 +17,7 @@ env:
 
 jobs:
   aarch64_linux_gnu:
+    if: false
     name: Build onnxruntime lib for aarch64 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -199,5 +200,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}
+          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}
           path: onnxruntime-linux-aarch64-static_lib*
