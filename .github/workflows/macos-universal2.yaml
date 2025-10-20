@@ -99,7 +99,7 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          # python3 -m pip install cmake
+          python3 -m pip install "cmake<4"
           cmake --version
 
       - name: Build onnxruntime for macOS universal2
