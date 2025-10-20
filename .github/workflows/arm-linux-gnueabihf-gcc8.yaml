@@ -101,6 +101,18 @@ jobs:
           echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
           ls -lh "$GITHUB_WORKSPACE/toolchain/bin"
 
+          cd "$GITHUB_WORKSPACE/toolchain/bin"
+
+          ln -s arm-linux-gnueabihf-gcc arm-none-linux-gnueabihf-gcc
+          ln -s arm-linux-gnueabihf-g++ arm-none-linux-gnueabihf-g++
+
+          ls -lh arm-none-*
+
+          ./arm-none-linux-gnueabihf-g++ --help
+
+          # echo "CC=arm-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
+          # echo "CXX=arm-linux-gnueabihf-g++" >> "$GITHUB_ENV"
+
           echo "CC=arm-none-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
           echo "CXX=arm-none-linux-gnueabihf-g++" >> "$GITHUB_ENV"
 
@@ -108,6 +120,7 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
+          export PATH=$GITHUB_WORKSPACE/toolchain/bin:$PATH
           arm-none-linux-gnueabihf-gcc --version
 
       - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
@@ -139,6 +152,9 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+
+          export PATH=$GITHUB_WORKSPACE/toolchain/bin:$PATH
+
 
           export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
