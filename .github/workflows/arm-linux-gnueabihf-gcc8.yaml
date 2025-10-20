@@ -1,10 +1,9 @@
-name: arm-linux-gnueabihf
+name: arm-linux-gnueabihf-gcc8
 
 on:
   push:
     branches:
       - v1.22.0-2
-      - fix-for-arm
   workflow_dispatch:
     inputs:
       version:
@@ -20,7 +19,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
 
 jobs:
-  arm_linux_gnueabihf:
+  arm_linux_gnueabihf_gcc8:
     name: Build onnxruntime lib for arm32 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
