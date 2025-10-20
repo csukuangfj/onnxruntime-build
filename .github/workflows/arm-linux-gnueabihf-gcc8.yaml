@@ -1,0 +1,214 @@
+name: arm-linux-gnueabihf
+
+on:
+  push:
+    branches:
+      - v1.22.0-2
+      - fix-for-arm
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version information (e.g., 1.22.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  ONNXRUNTIME_VERSION:
+    |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
+
+jobs:
+  arm_linux_gnueabihf:
+    name: Build onnxruntime lib for arm32 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
+        id: cache-build-result
+        uses: actions/cache@v4
+        with:
+          path: onnxruntime-linux-arm-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-arm-linux-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+
+      - name: ccache
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-armv7
+
+      - name: Update ONNX Runtime
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        run: |
+          echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
+          git submodule update --init --depth=1 onnxruntime
+          cd onnxruntime
+          git fetch origin tag v$ONNXRUNTIME_VERSION
+          git checkout v$ONNXRUNTIME_VERSION
+
+      - name: cache-toolchain
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        id: cache-toolchain
+        uses: actions/cache@v3
+        with:
+          path: toolchain
+          key: gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf
+
+      - name: Download toolchain
+        if: steps.cache-toolchain.outputs.cache-hit != 'true' && steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -SL -O https://developer.arm.com/-/media/Files/downloads/gnu-a/8.3-2019.03/binrel/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf.tar.xz
+
+          mkdir $GITHUB_WORKSPACE/toolchain
+
+          tar xvf ./gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf.tar.xz --strip-components 1 -C $GITHUB_WORKSPACE/toolchain
+          rm -v gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf.tar.xz
+
+      - name: Download protoc
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          # see ./cmake/deps.txt
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[0-3].[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.18.1/protoc-3.18.1-linux-x86_64.zip
+            unzip protoc-3.18.1-linux-x86_64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
+            unzip protoc-3.20.3-linux-x86_64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.2[0-9].[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+            unzip protoc-21.12-linux-x86_64.zip
+          else
+            echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
+            exit 1
+          fi
+
+          ./bin/protoc --version
+
+      - name: Set environment variable
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/toolchain/bin"  >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
+          ls -lh "$GITHUB_WORKSPACE/toolchain/bin"
+
+          echo "CC=arm-none-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
+          echo "CXX=arm-none-linux-gnueabihf-g++" >> "$GITHUB_ENV"
+
+      - name: Display toolchain info
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          arm-none-linux-gnueabihf-gcc --version
+
+      - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          protoc --version
+
+      - name: Show current directory
+        shell: bash
+        run: |
+          ls -lh
+          echo $PWD
+
+      - name: Install dependencies
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install python3 git-lfs
+          python3 -m pip install "cmake<4"
+          cmake --version
+
+      - name: Build onnxruntime for 32-bit ARM
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --version
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+
+          export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          ./build-static_lib.sh
+
+      - name: Collect result
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          ls -lh output/static_lib/
+          ls -lh output/static_lib/include
+          ls -lh output/static_lib/lib
+
+          dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          mkdir $dst
+          mv -v output/static_lib/* $dst
+
+          zip -r ${dst}.zip $dst/
+
+      - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file_glob: true
+          file: "./*.zip"
+          overwrite: true
+          repo_name: csukuangfj/onnxruntime-libs
+          repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
+          tag: v${{ env.ONNXRUNTIME_VERSION }}
+
+      - name: Publish to huggingface
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 20
+          timeout_seconds: 200
+          shell: bash
+          command: |
+            git config --global user.email "csukuangfj@gmail.com"
+            git config --global user.name "Fangjun Kuang"
+
+            rm -rf huggingface
+            export GIT_LFS_SKIP_SMUDGE=1
+            export GIT_CLONE_PROTECTION_ACTIVE=false
+
+            ls -lh
+
+            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            cd huggingface
+            git pull
+
+            name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
+
+            version=${{ env.ONNXRUNTIME_VERSION }}
+            mkdir -p $version
+
+            ls -lh ../$name
+
+
+            cp -v ../$name ./$version
+
+            git status
+            git add .
+            git commit -m "add $name"
+            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+
+      - uses: actions/upload-artifact@v4
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        with:
+          name: onnxruntime-linux-arm-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          path: onnxruntime-linux-arm-static_lib*
