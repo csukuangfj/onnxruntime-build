@@ -68,7 +68,7 @@ set(FILES_TO_INSTALL
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_session_options_config_keys.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/framework/provider_options.h
 )
-foreach(FILE_PATH IN LISTS MY_FILES)
+foreach(FILE_PATH IN LISTS FILES_TO_INSTALL)
   if(EXISTS "${FILE_PATH}")
     install(
         FILES
