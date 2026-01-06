@@ -1,4 +1,4 @@
-name: arm-linux-gnueabihf
+name: arm-linux-gnueabihf-gcc8
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  arm_linux_gnueabihf:
+  arm_linux_gnueabihf_gcc8:
     name: Build onnxruntime lib for arm32 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:

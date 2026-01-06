@@ -39,14 +39,6 @@ echo "pwd: $PWD"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 
-    if [[ "$CMAKE_OPTIONS" =~ "-Donnxruntime_USE_COREML=ON" ]]; then
-      COREML_FILE="cmake/onnxruntime_providers_coreml.cmake"
-      echo "📝 Patching coreml_proto install block to include EXPORT"
-      sed -i.bak -E 's|(install\(TARGETS coreml_proto)|\1\n                EXPORT ${PROJECT_NAME}Targets|' "$COREML_FILE"
-      echo "✅ Patched $COREML_FILE"
-      git diff .
-    fi
-
     if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
       MLAS_CMAKE_FILE="cmake/onnxruntime_mlas.cmake"
 
@@ -73,6 +65,7 @@ EOF
 
       echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
     fi
+    git diff .
 )
 
 echo "pwd: $PWD"
