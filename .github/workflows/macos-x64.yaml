@@ -53,6 +53,7 @@ jobs:
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         run: |
+          ONNXRUNTIME_VERSION=${{ env.ONNXRUNTIME_VERSION }}
           echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
           git submodule update --init --depth=1 onnxruntime
           cd onnxruntime
@@ -124,7 +125,7 @@ jobs:
 
           cp -v onnxruntime/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h output/static_lib/include
 
-          dst=onnxruntime-osx-x86_64-static_lib-${ONNXRUNTIME_VERSION}
+          dst=onnxruntime-osx-x86_64-static_lib-${{ env.ONNXRUNTIME_VERSION }}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
@@ -165,7 +166,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-osx-x86_64-static_lib-${{ ONNXRUNTIME_VERSION }}.zip
+            name=onnxruntime-osx-x86_64-static_lib-${{ en.ONNXRUNTIME_VERSION }}.zip
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
 
