@@ -49,6 +49,7 @@ cmake \
     -D CMAKE_CONFIGURATION_TYPES=$CMAKE_BUILD_TYPE \
     -D CMAKE_INSTALL_PREFIX=$OUTPUT_DIR \
     -D ONNXRUNTIME_SOURCE_DIR=$(pwd)/$ONNXRUNTIME_SOURCE_DIR \
+    -Donnxruntime_INSTALL_CMAKE_CONFIG=OFF \
     --compile-no-warning-as-error \
     $CMAKE_OPTIONS
 cmake \
