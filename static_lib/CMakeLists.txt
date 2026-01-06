@@ -1,3 +1,6 @@
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0.0")
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
 cmake_minimum_required(VERSION 3.28)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
