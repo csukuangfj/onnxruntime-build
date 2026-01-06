@@ -166,7 +166,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-osx-x86_64-static_lib-${{ en.ONNXRUNTIME_VERSION }}.zip
+            name=onnxruntime-osx-x86_64-static_lib-${{ env.ONNXRUNTIME_VERSION }}.zip
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
 
