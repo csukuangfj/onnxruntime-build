@@ -52,25 +52,29 @@ bundle_static_library(${PROJECT_NAME}
     cpuinfo
 )
 
-if(EXISTS "${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_float16.h")
-install(
-    FILES
+set(FILES_TO_INSTALL
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_float16.h
-    TYPE INCLUDE
-)
-endif()
-
-install(
-    FILES
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_c_api.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_c_api.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_device_ep_metadata_keys.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_lite_custom_op.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_api.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_inline.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_run_options_config_keys.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_session_options_config_keys.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/framework/provider_options.h
-    TYPE INCLUDE
 )
+foreach(FILE_PATH IN LISTS MY_FILES)
+  if(EXISTS "${FILE_PATH}")
+    install(
+        FILES
+        ${FILE_PATH}
+        TYPE INCLUDE
+    )
+  endif()
+endforeach()
+
 if(APPLE)
   install(
       FILES
