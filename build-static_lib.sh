@@ -38,9 +38,47 @@ echo "pwd: $PWD"
     echo "---"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
+
+    if [[ "$CMAKE_OPTIONS" =~ "-Donnxruntime_USE_COREML=ON" ]]; then
+      COREML_FILE="cmake/onnxruntime_providers_coreml.cmake"
+      echo "📝 Patching coreml_proto install block to include EXPORT"
+      sed -i.bak -E 's|(install\(TARGETS coreml_proto)|\1\n                EXPORT ${PROJECT_NAME}Targets|' "$COREML_FILE"
+      echo "✅ Patched $COREML_FILE"
+      git diff .
+    fi
+
+    if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
+      MLAS_CMAKE_FILE="cmake/onnxruntime_mlas.cmake"
+
+      cat <<'EOF' >> "$MLAS_CMAKE_FILE"
+# --- PATCH: Export multi-arch MLAS targets for static builds ---
+if(ONNXRUNTIME_MLAS_MULTI_ARCH AND NOT onnxruntime_BUILD_SHARED_LIB)
+    if(TARGET onnxruntime_mlas_arm64)
+        install(TARGETS onnxruntime_mlas_arm64
+                EXPORT ${PROJECT_NAME}Targets
+                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+    if(TARGET onnxruntime_mlas_x86_64)
+        install(TARGETS onnxruntime_mlas_x86_64
+                EXPORT ${PROJECT_NAME}Targets
+                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+endif()
+# --- END PATCH ---
+EOF
+
+      echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
+    fi
 )
+
 echo "pwd: $PWD"
 ls -lh
+
+
 
 cmake \
     -S $SOURCE_DIR \

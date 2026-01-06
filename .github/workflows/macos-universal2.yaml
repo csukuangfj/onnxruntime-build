@@ -102,55 +102,6 @@ jobs:
           # python3 -m pip install cmake
           cmake --version
 
-
-      - name: Patch onnxruntime for coreml
-        if: steps.cache-build-result.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          COREML_FILE="onnxruntime/cmake/onnxruntime_providers_coreml.cmake"
-          echo "📝 Patching coreml_proto install block to include EXPORT"
-
-          sed -i.bak -E 's|(install\(TARGETS coreml_proto)|\1\n                EXPORT ${PROJECT_NAME}Targets|' "$COREML_FILE"
-          echo "✅ Patched $COREML_FILE"
-
-          cd onnxruntime
-          git diff .
-
-      - name: Patch onnxruntime for mlas
-        if: steps.cache-build-result.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          MLAS_CMAKE_FILE="onnxruntime/cmake/onnxruntime_mlas.cmake"
-          if [[ ! -f "$MLAS_CMAKE_FILE" ]]; then
-            echo "Error: $MLAS_CMAKE_FILE not found!"
-            exit 1
-          fi
-
-          cat <<'EOF' >> "$MLAS_CMAKE_FILE"
-            # --- PATCH: Export multi-arch MLAS targets for static builds ---
-            if(ONNXRUNTIME_MLAS_MULTI_ARCH AND NOT onnxruntime_BUILD_SHARED_LIB)
-                if(TARGET onnxruntime_mlas_arm64)
-                    install(TARGETS onnxruntime_mlas_arm64
-                            EXPORT ${PROJECT_NAME}Targets
-                            ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                            LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                            RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
-                endif()
-                if(TARGET onnxruntime_mlas_x86_64)
-                    install(TARGETS onnxruntime_mlas_x86_64
-                            EXPORT ${PROJECT_NAME}Targets
-                            ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                            LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                            RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
-                endif()
-            endif()
-            # --- END PATCH ---
-          EOF
-
-          echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
-          cd onnxruntime
-          git diff .
-
       - name: Build onnxruntime for macOS universal2
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
