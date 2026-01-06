@@ -31,7 +31,15 @@ add_subdirectory(${ONNXRUNTIME_SOURCE_DIR}/cmake onnxruntime EXCLUDE_FROM_ALL)
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 include(bundle_static_library.cmake)
+
+set(my_extra_lib)
+
+if(APPLE AND arm64 IN_LIST CMAKE_OSX_ARCHITECTURES AND x86_64 IN_LIST CMAKE_OSX_ARCHITECTURES)
+  set(my_extra_lib onnxruntime_mlas_arm64 onnxruntime_mlas_x86_64)
+endif()
+
 bundle_static_library(${PROJECT_NAME}
+    ${my_extra_lib}
     onnxruntime_session
     onnxruntime_optimizer
     onnxruntime_providers
