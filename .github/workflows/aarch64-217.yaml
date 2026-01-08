@@ -63,6 +63,13 @@ jobs:
               echo "update gcc"
 
               yum install -y centos-release-scl
+              sed -i \
+                -e 's|^mirrorlist=|#mirrorlist=|g' \
+                -e 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
+                /etc/yum.repos.d/CentOS-SCLo-*.repo
+              yum clean all
+              yum makecache
+
               yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils
               source /opt/rh/devtoolset-11/enable
 
