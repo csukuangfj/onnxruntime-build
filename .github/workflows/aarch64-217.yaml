@@ -3,7 +3,7 @@ name: aarch64-glibc217
 on:
   push:
     branches:
-      - v1.22.0-2
+      - test-v1.23.2
   workflow_dispatch:
     inputs:
       version:
@@ -51,15 +51,35 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            image: quay.io/pypa/manylinux_2_28_aarch64 # onnxruntime v1.22.0 requires gcc >= 11
+            # image: quay.io/pypa/manylinux_2_28_aarch64 # onnxruntime v1.22.0 requires gcc >= 11
+            image: quay.io/pypa/manylinux2014_aarch64
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
             run: |
               uname -a
               gcc --version
+
+              echo "update gcc"
+
+              yum install -y centos-release-scl
+              yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-binutils
+              source /opt/rh/devtoolset-11/enable
+
+              echo 'which gcc'
+              which gcc
+
+              echo 'gcc --version'
+              gcc --version
+
+
               find /opt -name "python*"
-              export PATH=/opt/_internal/cpython-3.10.17/bin:$PATH
+
+              PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
+              echo "PYBIN_DIR: $PYBIN_DIR"
+
+              export PATH=$PYBIN_DIR:$PATH
+
               python3 --version
               python3 -m pip install ninja cmake
 

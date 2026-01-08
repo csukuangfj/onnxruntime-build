@@ -119,7 +119,12 @@ jobs:
               gcc --version
 
               find /opt -name "python*"
-              export PATH=/opt/_internal/cpython-3.10.17/bin:$PATH
+
+              PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
+              echo "PYBIN_DIR: $PYBIN_DIR"
+
+              export PATH=$PYBIN_DIR:$PATH
+
               python3 --version
               python3 -m pip install ninja cmake
 
