@@ -63,34 +63,31 @@ jobs:
               echo "update gcc"
 
               # --------------------------------------------------
-              # 1. Fix BASE CentOS 7 repos (required so yum works)
+              # 1. Fix BASE CentOS 7 repos
               # --------------------------------------------------
-              for f in /etc/yum.repos.d/CentOS-Base.repo; do
-                sed -i \
-                  -e 's|^mirrorlist=|#mirrorlist=|g' \
-                  -e 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
-                  \"\$f\"
-              done
+              sed -i \
+                -e "s|^mirrorlist=|#mirrorlist=|g" \
+                -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
+                /etc/yum.repos.d/CentOS-Base.repo
 
-              sed -i 's|^enabled=1|enabled=0|' /etc/yum/pluginconf.d/fastestmirror.conf || true
+              # Disable fastestmirror (important)
+              sed -i "s|^enabled=1|enabled=0|" /etc/yum/pluginconf.d/fastestmirror.conf || true
 
               yum clean all
               rm -rf /var/cache/yum
 
               # --------------------------------------------------
-              # 2. Install SCL release (adds NEW repo files)
+              # 2. Install SCL release (adds new repo files)
               # --------------------------------------------------
               yum install -y centos-release-scl
 
               # --------------------------------------------------
-              # 3. FIX SCL repos (THIS IS THE STEP YOU WERE MISSING)
+              # 3. Fix SCL repos (CRITICAL)
               # --------------------------------------------------
-              for f in /etc/yum.repos.d/CentOS-SCLo-*.repo; do
-                sed -i \
-                  -e 's|^mirrorlist=|#mirrorlist=|g' \
-                  -e 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
-                  \"\$f\"
-              done
+              sed -i \
+                -e "s|^mirrorlist=|#mirrorlist=|g" \
+                -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
+                /etc/yum.repos.d/CentOS-SCLo-*.repo
 
               yum clean all
               rm -rf /var/cache/yum
