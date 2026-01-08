@@ -63,42 +63,50 @@ jobs:
               echo "update gcc"
 
               # --------------------------------------------------
-              # 1. Fix BASE CentOS 7 repos
+              # 0. Disable SCL repos if they exist (CRITICAL)
+              # --------------------------------------------------
+              if ls /etc/yum.repos.d/CentOS-SCLo-*.repo >/dev/null 2>&1; then
+                sed -i "s|^enabled=1|enabled=0|" /etc/yum.repos.d/CentOS-SCLo-*.repo
+              fi
+
+              # --------------------------------------------------
+              # 1. Fix BASE CentOS repos
               # --------------------------------------------------
               sed -i \
                 -e "s|^mirrorlist=|#mirrorlist=|g" \
                 -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
                 /etc/yum.repos.d/CentOS-Base.repo
 
-              # Disable fastestmirror (important)
-              sed -i "s|^enabled=1|enabled=0|" /etc/yum/pluginconf.d/fastestmirror.conf || true
-
-              yum clean all
-              rm -rf /var/cache/yum
+              sed -i "s|^enabled=1|enabled=0|" \
+                /etc/yum/pluginconf.d/fastestmirror.conf || true
 
               # --------------------------------------------------
-              # 2. Install SCL release (adds new repo files)
+              # 2. Install SCL release (safe now)
               # --------------------------------------------------
               yum install -y centos-release-scl
 
               # --------------------------------------------------
-              # 3. Fix SCL repos (CRITICAL)
+              # 3. Fix SCL repos
               # --------------------------------------------------
               sed -i \
                 -e "s|^mirrorlist=|#mirrorlist=|g" \
                 -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" \
+                -e "s|^enabled=0|enabled=1|" \
                 /etc/yum.repos.d/CentOS-SCLo-*.repo
 
+              # --------------------------------------------------
+              # 4. Now yum is safe to use
+              # --------------------------------------------------
               yum clean all
               rm -rf /var/cache/yum
 
               # --------------------------------------------------
-              # 4. Install GCC 11
+              # 5. Install GCC 11
               # --------------------------------------------------
               yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++
 
               # --------------------------------------------------
-              # 5. Enable GCC 11
+              # 6. Enable GCC 11
               # --------------------------------------------------
               source /opt/rh/devtoolset-11/enable
 
