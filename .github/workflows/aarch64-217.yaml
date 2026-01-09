@@ -1,9 +1,9 @@
-name: aarch64-glibc228
+name: aarch64-glibc217
 
 on:
   push:
     branches:
-      - test-v1.23.2-2
+      - test-v1.23.2
   workflow_dispatch:
     inputs:
       version:
@@ -19,7 +19,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  aarch64-glibc228:
+  aarch64-glibc217:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -35,8 +35,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
-          key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
+          key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -51,8 +51,9 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            image: quay.io/pypa/manylinux_2_28_aarch64 # onnxruntime v1.22.0 requires gcc >= 11
+            # image: quay.io/pypa/manylinux_2_17_aarch64 # onnxruntime v1.22.0 requires gcc >= 11. cannot install gcc11 from packages
             # image: quay.io/pypa/manylinux2014_aarch64 # it has only gcc 10. gcc 11 cannot be installed on it
+            image: ghcr.io/csukuangfj/manylinux2014-aarch64-gcc11:latest # i have built gcc 11 from source
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
@@ -67,7 +68,7 @@ jobs:
               gcc --version
 
 
-              find /opt -name "python*"
+              # find /opt -name "python*"
 
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"
@@ -85,6 +86,20 @@ jobs:
               echo "----------"
               ls -lh
               echo "----------"
+
+              # ✅ FORCE GCC 11
+              export GCC_ROOT=/opt/gcc-11.4.0
+              export CC=$GCC_ROOT/bin/gcc
+              export CXX=$GCC_ROOT/bin/g++
+              export PATH=$GCC_ROOT/bin:$PATH
+
+              gcc --version
+              which gcc
+
+              g++ --version
+              which g++
+
+              ldd --version
 
               export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
               export PARALLEL_JOB_COUNT=1
@@ -110,7 +125,7 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28
+          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17
           mkdir $dst
           cp -av output/static_lib/* $dst
 
@@ -153,7 +168,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28.zip
+            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17.zip
 
             mkdir -p $version
 
@@ -167,5 +182,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
           path: onnxruntime-linux-aarch64-static_lib*
