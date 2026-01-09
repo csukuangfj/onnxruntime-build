@@ -118,7 +118,7 @@ jobs:
               echo 'gcc --version'
               gcc --version
 
-              find /opt -name "python*"
+              # find /opt -name "python*"
 
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"

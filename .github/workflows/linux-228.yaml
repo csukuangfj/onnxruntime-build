@@ -3,7 +3,7 @@ name: linux-glibc228
 on:
   push:
     branches:
-      - test-v1.23.2
+      - test-v1.23.2-2
   workflow_dispatch:
     inputs:
       version:
@@ -104,7 +104,7 @@ jobs:
               g++ --version
               ldd --version
 
-              find /opt -name "python*"
+              # find /opt -name "python*"
 
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"
