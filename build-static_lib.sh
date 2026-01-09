@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:=Release}
 SOURCE_DIR=${SOURCE_DIR:=static_lib}
@@ -38,9 +38,40 @@ echo "pwd: $PWD"
     echo "---"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
+
+    if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
+      MLAS_CMAKE_FILE="cmake/onnxruntime_mlas.cmake"
+
+      cat <<'EOF' >> "$MLAS_CMAKE_FILE"
+# --- PATCH: Export multi-arch MLAS targets for static builds ---
+if(ONNXRUNTIME_MLAS_MULTI_ARCH AND NOT onnxruntime_BUILD_SHARED_LIB)
+    if(TARGET onnxruntime_mlas_arm64)
+        install(TARGETS onnxruntime_mlas_arm64
+                EXPORT ${PROJECT_NAME}Targets
+                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+    if(TARGET onnxruntime_mlas_x86_64)
+        install(TARGETS onnxruntime_mlas_x86_64
+                EXPORT ${PROJECT_NAME}Targets
+                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+endif()
+# --- END PATCH ---
+EOF
+
+      echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
+    fi
+    git diff .
 )
+
 echo "pwd: $PWD"
 ls -lh
+
+
 
 cmake \
     -S $SOURCE_DIR \

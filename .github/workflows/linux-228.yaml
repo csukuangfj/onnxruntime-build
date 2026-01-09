@@ -1,9 +1,9 @@
-name: android-static
+name: linux-glibc228
 
 on:
   push:
     branches:
-      - v1.23.2-2
+      - test-v1.23.2-2
   workflow_dispatch:
     inputs:
       version:
@@ -19,45 +19,24 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  android-static:
-    name: android static lib ${{ matrix.arch }}
+  linux-glibc228:
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        arch: [arm64-v8a, armeabi-v7a, x86, x86_64]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # https://github.com/actions/setup-java
-      - uses: actions/setup-java@v4
+      - name: Cache build result for ${{ env.ONNXRUNTIME_VERSION }}
+        id: cache-build-result
+        uses: actions/cache@v4
         with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '21'
-
-      - name: ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: android-static-${{ env.ONNXRUNTIME_VERSION }}-${{ matrix.arch }}
-
-      # - uses: nttld/setup-ndk@v1
-      #   id: setup-ndk
-      #   with:
-      #     ndk-version: r22
-      #     add-to-path: false
-
-      - name: Display NDK HOME
-        shell: bash
-        run: |
-          echo "ANDROID_NDK_LATEST_HOME: ${ANDROID_NDK_LATEST_HOME}"
-          ls -lh ${ANDROID_NDK_LATEST_HOME}
-
-          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
-          echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
-          echo "ANDROID_NDK: $ANDROID_NDK"
+          path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -104,60 +83,90 @@ jobs:
           ls -lh
           echo $PWD
 
-      - name: Install dependencies
+      - name: Build onnxruntime ${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          python3 -m pip install cmake
-          cmake --version
+        uses: addnab/docker-run-action@v3
+        with:
+            image: quay.io/pypa/manylinux_2_28_x86_64
+            options: |
+              --volume ${{ github.workspace }}/:/shared/
+            shell: bash
+            run: |
+              uname -a
+              gcc --version
 
-      - name: Build onnxruntime for android ${{ matrix.arch}}
-        shell: bash
-        run: |
-          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          cmake --version
+              echo 'which gcc'
+              which gcc
 
-          # For ndk 22
-          # export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
-          # export ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
+              echo 'gcc --version'
+              gcc --version
+              which g++
+              g++ --version
+              ldd --version
 
-          arch=${{ matrix.arch }}
+              # find /opt -name "python*"
 
-          export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$arch -DANDROID_PLATFORM=android-21 -DANDROID_STL=c++_shared"
+              PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
+              echo "PYBIN_DIR: $PYBIN_DIR"
 
-          ./build-static_lib.sh
+              export PATH=$PYBIN_DIR:$PATH
 
-      - name: Collect result ${{ matrix.arch }}
+              python3 --version
+              python3 -m pip install ninja cmake
+
+              export PATH=/shared/toolchain/bin:$PATH
+
+              cmake --version
+
+              cd /shared
+              echo "----------"
+              ls -lh
+              echo "----------"
+
+              export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/shared/bin/protoc"
+
+              git config --global --add safe.directory /shared/onnxruntime
+              git config --global --add safe.directory /shared
+
+              ./build-static_lib.sh
+
+              build_dir=output
+              chmod a=rwx $build_dir
+              ls -lh $build_dir
+              ls -lh $build_dir/*
+              mv $build_dir/static_lib/lib64 $build_dir/static_lib/lib
+
+              ls -lh $build_dir/static_lib
+
+      - name: Collect result
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
           ls -lh output/static_lib/
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-android-${{ matrix.arch }}-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28
           mkdir $dst
-
-          mv -v output/static_lib/* $dst
+          cp -av output/static_lib/* $dst
 
           zip -r ${dst}.zip $dst/
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sherpa-onnx-android-${{ matrix.arch }}
-          path: ./onnxruntime*.zip
+          ls -lh $dst.zip
 
-      - name: Upload v${{ env.ONNXRUNTIME_VERSION }} ${{ matrix.arch }}
+      - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: svenstaro/upload-release-action@v2
         with:
           file_glob: true
-          file: "./onnxruntime*.zip"
+          file: "./*.zip"
           overwrite: true
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}
 
       - name: Publish to huggingface
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         uses: nick-fields/retry@v2
@@ -179,14 +188,20 @@ jobs:
             cd huggingface
             git pull
 
+            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28.zip
+
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
 
-            name=onnxruntime-android-${{ matrix.arch }}-static_lib-${{ env.ONNXRUNTIME_VERSION }}.zip
-
-            cp -v ../$name $version/
+            cp -v ../$name ./$version/
 
             git status
             git add .
             git commit -m "add $name"
             git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+
+      - uses: actions/upload-artifact@v4
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        with:
+          name: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          path: onnxruntime-linux-x64-static_lib*

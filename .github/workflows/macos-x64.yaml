@@ -3,11 +3,11 @@ name: macos-x86_64
 on:
   push:
     branches:
-      - v1.22.0-2
+      - test-v1.23.2-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.22.0)"
+        description: "Version information (e.g., 1.23.2)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
   macos_x86_64:
@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13]
+        os: [macos-15-intel]
         python-version: ["3.10"]
 
     steps:
@@ -53,6 +53,7 @@ jobs:
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         run: |
+          ONNXRUNTIME_VERSION=${{ env.ONNXRUNTIME_VERSION }}
           echo $ONNXRUNTIME_VERSION > ONNXRUNTIME_VERSION
           git submodule update --init --depth=1 onnxruntime
           cd onnxruntime
@@ -111,7 +112,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=ON -DCMAKE_OSX_ARCHITECTURES='x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=OFF -DCMAKE_OSX_ARCHITECTURES='x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
 
       - name: Collect result
@@ -124,7 +125,7 @@ jobs:
 
           cp -v onnxruntime/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h output/static_lib/include
 
-          dst=onnxruntime-osx-x86_64-static_lib-${ONNXRUNTIME_VERSION}
+          dst=onnxruntime-osx-x86_64-static_lib-${{ env.ONNXRUNTIME_VERSION }}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
@@ -165,7 +166,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-osx-x86_64-static_lib-${{ ONNXRUNTIME_VERSION }}.zip
+            name=onnxruntime-osx-x86_64-static_lib-${{ env.ONNXRUNTIME_VERSION }}.zip
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
 

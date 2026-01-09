@@ -3,11 +3,11 @@ name: macos-universal2
 on:
   push:
     branches:
-      - v1.22.0-2
+      - test-v1.23.2-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.22.0)"
+        description: "Version information (e.g., 1.23.2)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.22.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
   macos_universal2:
@@ -111,7 +111,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
-          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=ON -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export CMAKE_OPTIONS="-Donnxruntime_USE_COREML=OFF -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           ./build-static_lib.sh
 
       - name: Collect result

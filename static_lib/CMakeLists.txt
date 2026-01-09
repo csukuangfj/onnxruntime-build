@@ -1,8 +1,11 @@
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0.0")
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
 cmake_minimum_required(VERSION 3.28)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(ONNX_USE_MSVC_STATIC_RUNTIME ON)
 set(protobuf_MSVC_STATIC_RUNTIME ON)
 set(ABSL_MSVC_STATIC_RUNTIME ON)
@@ -28,7 +31,15 @@ add_subdirectory(${ONNXRUNTIME_SOURCE_DIR}/cmake onnxruntime EXCLUDE_FROM_ALL)
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 include(bundle_static_library.cmake)
+
+set(my_extra_lib)
+
+if(APPLE AND arm64 IN_LIST CMAKE_OSX_ARCHITECTURES AND x86_64 IN_LIST CMAKE_OSX_ARCHITECTURES)
+  set(my_extra_lib onnxruntime_mlas_arm64 onnxruntime_mlas_x86_64)
+endif()
+
 bundle_static_library(${PROJECT_NAME}
+    ${my_extra_lib}
     onnxruntime_session
     onnxruntime_optimizer
     onnxruntime_providers
@@ -52,25 +63,29 @@ bundle_static_library(${PROJECT_NAME}
     cpuinfo
 )
 
-if(EXISTS "${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_float16.h")
-install(
-    FILES
+set(FILES_TO_INSTALL
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_float16.h
-    TYPE INCLUDE
-)
-endif()
-
-install(
-    FILES
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_c_api.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_c_api.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_device_ep_metadata_keys.h
+    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_lite_custom_op.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_api.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_inline.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_run_options_config_keys.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_session_options_config_keys.h
     ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/framework/provider_options.h
-    TYPE INCLUDE
 )
+foreach(FILE_PATH IN LISTS FILES_TO_INSTALL)
+  if(EXISTS "${FILE_PATH}")
+    install(
+        FILES
+        ${FILE_PATH}
+        TYPE INCLUDE
+    )
+  endif()
+endforeach()
+
 if(APPLE)
   install(
       FILES
