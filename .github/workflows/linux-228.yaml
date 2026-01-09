@@ -1,9 +1,9 @@
-name: aarch64-glibc217
+name: linux-glibc228
 
 on:
   push:
     branches:
-      - test-v1.23.2-2
+      - test-v1.23.2
   workflow_dispatch:
     inputs:
       version:
@@ -19,13 +19,13 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  aarch64-glibc217:
+  linux-glibc228:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04-arm]
+        os: [ubuntu-latest]
 
     steps:
       - name: Checkout
@@ -35,8 +35,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
-          key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
+          path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -47,13 +47,47 @@ jobs:
           git fetch origin tag v$ONNXRUNTIME_VERSION
           git checkout v$ONNXRUNTIME_VERSION
 
+      - name: Download protoc
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          # see ./cmake/deps.txt
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.14.[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protoc-3.20.3-linux-x86_64.zip
+            unzip protoc-3.20.3-linux-x86_64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.1[56789].[0-9] || ${{ env.ONNXRUNTIME_VERSION }} =~ 1.2[0-9].[0-9] ]]; then
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+            unzip protoc-21.12-linux-x86_64.zip
+          else
+            echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
+            exit 1
+          fi
+
+          ./bin/protoc --version
+
+      - name: Set environment variable
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/bin"  >> "$GITHUB_PATH"
+
+      - name: Display protoc info for ${{ env.ONNXRUNTIME_VERSION }}
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          protoc --version
+
+      - name: Show current directory
+        shell: bash
+        run: |
+          ls -lh
+          echo $PWD
+
       - name: Build onnxruntime ${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            # image: quay.io/pypa/manylinux_2_17_aarch64 # onnxruntime v1.22.0 requires gcc >= 11. cannot install gcc11 from packages
-            # image: quay.io/pypa/manylinux2014_aarch64 # it has only gcc 10. gcc 11 cannot be installed on it
-            image: ghcr.io/csukuangfj/manylinux2014-aarch64-gcc11:latest # i have built gcc 11 from source
+            image: quay.io/pypa/manylinux_2_28_x86_64
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
@@ -66,9 +100,11 @@ jobs:
 
               echo 'gcc --version'
               gcc --version
+              which g++
+              g++ --version
+              ldd --version
 
-
-              # find /opt -name "python*"
+              find /opt -name "python*"
 
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"
@@ -87,22 +123,7 @@ jobs:
               ls -lh
               echo "----------"
 
-              # ✅ FORCE GCC 11
-              export GCC_ROOT=/opt/gcc-11.4.0
-              export CC=$GCC_ROOT/bin/gcc
-              export CXX=$GCC_ROOT/bin/g++
-              export PATH=$GCC_ROOT/bin:$PATH
-
-              gcc --version
-              which gcc
-
-              g++ --version
-              which g++
-
-              ldd --version
-
-              export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
-              export PARALLEL_JOB_COUNT=1
+              export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/shared/bin/protoc"
 
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
@@ -125,11 +146,13 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17
+          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28
           mkdir $dst
           cp -av output/static_lib/* $dst
 
           zip -r ${dst}.zip $dst/
+
+          ls -lh $dst.zip
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -159,20 +182,18 @@ jobs:
             export GIT_LFS_SKIP_SMUDGE=1
             export GIT_CLONE_PROTECTION_ACTIVE=false
 
-            version=${{ env.ONNXRUNTIME_VERSION }}
-
             ls -lh
 
-            rm -rf huggingface
             git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17.zip
+            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_28.zip
 
+            version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
 
-            cp -v ../$name $version/
+            cp -v ../$name ./$version/
 
             git status
             git add .
@@ -182,5 +203,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17
-          path: onnxruntime-linux-aarch64-static_lib*
+          name: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_28
+          path: onnxruntime-linux-x64-static_lib*
