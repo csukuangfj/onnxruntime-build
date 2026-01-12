@@ -21,6 +21,13 @@ cd $(dirname $0)
     fi
     git submodule update --init --depth=1 --recursive
 
+    # Disable lto since i get the following error in sherpa-onnx
+    # wasm-ld: error: --shared-memory is disallowed by lto.tmp because it was not compiled with 'atomics' or 'bulk-memory' features.
+    sed -i.bak '/if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")/,/endif()/ s/ -flto//g' ./cmake/adjust_global_compile_flags.cmake
+
+    git diff .
+
+
     # pushd $ONNXRUNTIME_SOURCE_DIR
     # ls -lh
     # cd core/mlas/lib
@@ -38,6 +45,7 @@ $ONNXRUNTIME_SOURCE_DIR/build.sh \
     --config $BUILD_CONFIG \
     --build_wasm_static_lib \
     --enable_wasm_simd \
+    --enable_wasm_threads \
     --disable_wasm_exception_catching \
     --disable_rtti \
     --skip_tests \
