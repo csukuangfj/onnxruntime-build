@@ -3,7 +3,7 @@ name: wasm-simd
 on:
   push:
     branches:
-      - test-v1.23.2
+      - fix-wasm
   workflow_dispatch:
     inputs:
       version:
