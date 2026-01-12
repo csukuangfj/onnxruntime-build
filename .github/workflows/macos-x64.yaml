@@ -75,6 +75,7 @@ jobs:
             echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
             exit 1
           fi
+          rm -fv protoc*.zip
 
           ./bin/protoc --version
 

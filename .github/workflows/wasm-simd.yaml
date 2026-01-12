@@ -1,11 +1,16 @@
 name: wasm-simd
 
 on:
+  push:
+    branches:
+      - test-v1.23.2
   workflow_dispatch:
     inputs:
       version:
         description: "Version information (e.g., 1.23.2)"
         required: true
+
+# v1.23.2 requires emsdk 4.0.8
 
 permissions:
   contents: write
@@ -66,6 +71,8 @@ jobs:
             exit 1
           fi
 
+          rm -fv protoc*.zip
+
           ./bin/protoc --version
 
       - name: Set environment variable
@@ -111,14 +118,14 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          ls -lh output/wasm-static_lib/
-          ls -lh output/wasm-static_lib/include
-          ls -lh output/wasm-static_lib/lib
+          ls -lh output/wasm-static_lib/Release
+          ls -lh output/wasm-static_lib/Release/include
+          ls -lh output/wasm-static_lib/Release/lib
 
           dst=onnxruntime-wasm-static_lib-simd-${ONNXRUNTIME_VERSION}
 
           mkdir $dst
-          mv -v output/wasm-static_lib/* $dst
+          mv -v output/wasm-static_lib/Release/* $dst
 
           zip -r ${dst}.zip $dst/
 

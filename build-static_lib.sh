@@ -39,32 +39,35 @@ echo "pwd: $PWD"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 
-    if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
-      MLAS_CMAKE_FILE="cmake/onnxruntime_mlas.cmake"
-
-      cat <<'EOF' >> "$MLAS_CMAKE_FILE"
-# --- PATCH: Export multi-arch MLAS targets for static builds ---
-if(ONNXRUNTIME_MLAS_MULTI_ARCH AND NOT onnxruntime_BUILD_SHARED_LIB)
-    if(TARGET onnxruntime_mlas_arm64)
-        install(TARGETS onnxruntime_mlas_arm64
-                EXPORT ${PROJECT_NAME}Targets
-                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
-    endif()
-    if(TARGET onnxruntime_mlas_x86_64)
-        install(TARGETS onnxruntime_mlas_x86_64
-                EXPORT ${PROJECT_NAME}Targets
-                ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
-                RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
-    endif()
-endif()
-# --- END PATCH ---
-EOF
-
-      echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
-    fi
+      # The following if has been moved to CMakeLists.txt
+      # See also
+      # https://github.com/supertone-inc/onnxruntime-build/commit/0ed115ff1d26c3d1b5cb641634c277d190442c1e
+#     if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
+#       MLAS_CMAKE_FILE="cmake/onnxruntime_mlas.cmake"
+#
+#       cat <<'EOF' >> "$MLAS_CMAKE_FILE"
+# # --- PATCH: Export multi-arch MLAS targets for static builds ---
+# if(ONNXRUNTIME_MLAS_MULTI_ARCH AND NOT onnxruntime_BUILD_SHARED_LIB)
+#     if(TARGET onnxruntime_mlas_arm64)
+#         install(TARGETS onnxruntime_mlas_arm64
+#                 EXPORT ${PROJECT_NAME}Targets
+#                 ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#                 LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#                 RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+#     endif()
+#     if(TARGET onnxruntime_mlas_x86_64)
+#         install(TARGETS onnxruntime_mlas_x86_64
+#                 EXPORT ${PROJECT_NAME}Targets
+#                 ARCHIVE   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#                 LIBRARY   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#                 RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR})
+#     endif()
+# endif()
+# # --- END PATCH ---
+# EOF
+#
+#       echo "✅ Patched $MLAS_CMAKE_FILE to export multi-arch MLAS targets."
+#     fi
     git diff .
 )
 

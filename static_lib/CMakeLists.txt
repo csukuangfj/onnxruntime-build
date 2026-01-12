@@ -28,7 +28,31 @@ set(onnxruntime_BUILD_SHARED_LIB OFF)
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 
 add_subdirectory(${ONNXRUNTIME_SOURCE_DIR}/cmake onnxruntime EXCLUDE_FROM_ALL)
+
+# Fix export set for architecture-specific MLAS libraries
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES ARCH_COUNT)
+    if(ARCH_COUNT GREATER 1)
+        # Add architecture-specific MLAS libraries to export set
+        if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND TARGET onnxruntime_mlas_arm64)
+            install(TARGETS onnxruntime_mlas_arm64 EXPORT onnxruntimeTargets
+                    ARCHIVE   DESTINATION lib
+                    LIBRARY   DESTINATION lib
+                    RUNTIME   DESTINATION bin
+                    FRAMEWORK DESTINATION bin)
+        endif()
+        if("x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES AND TARGET onnxruntime_mlas_x86_64)
+            install(TARGETS onnxruntime_mlas_x86_64 EXPORT onnxruntimeTargets
+                    ARCHIVE   DESTINATION lib
+                    LIBRARY   DESTINATION lib
+                    RUNTIME   DESTINATION bin
+                    FRAMEWORK DESTINATION bin)
+        endif()
+    endif()
+endif()
+
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+
 
 include(bundle_static_library.cmake)
 
