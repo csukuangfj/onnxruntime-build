@@ -2,8 +2,9 @@
 
 set -e
 
+BUILD_CONFIG=${BUILD_CONFIG:=Release}
 BUILD_DIR=${BUILD_DIR:=build/wasm-static_lib}
-OUTPUT_DIR=${OUTPUT_DIR:=output/wasm-static_lib}
+OUTPUT_DIR=${OUTPUT_DIR:=output/wasm-static_lib/$BUILD_CONFIG}
 ONNXRUNTIME_SOURCE_DIR=${ONNXRUNTIME_SOURCE_DIR:=onnxruntime}
 ONNXRUNTIME_VERSION=${ONNXRUNTIME_VERSION:=$(cat ONNXRUNTIME_VERSION)}
 EMSDK_DIR=${EMSDK_DIR:=$ONNXRUNTIME_SOURCE_DIR/cmake/external/emsdk}
@@ -20,24 +21,26 @@ cd $(dirname $0)
     fi
     git submodule update --init --depth=1 --recursive
 
-    pushd $ONNXRUNTIME_SOURCE_DIR
-    ls -lh
-    cd core/mlas/lib
-    echo  '#include "core/common/common.h"' | cat - q4common.h  > a.txt
-    mv a.txt q4common.h
-    git diff ./q4common.h
-    popd
+    # pushd $ONNXRUNTIME_SOURCE_DIR
+    # ls -lh
+    # cd core/mlas/lib
+    # echo  '#include "core/common/common.h"' | cat - q4common.h  > a.txt
+    # mv a.txt q4common.h
+    # git diff ./q4common.h
+    # popd
 )
 
-rm -f $BUILD_DIR/Release/libonnxruntime_webassembly.a
+rm -f $BUILD_DIR/$BUILD_CONFIG/libonnxruntime_webassembly.a
+
 
 $ONNXRUNTIME_SOURCE_DIR/build.sh \
     --build_dir $BUILD_DIR \
-    --config Release \
+    --config $BUILD_CONFIG \
     --build_wasm_static_lib \
-    --skip_tests \
+    --enable_wasm_simd \
     --disable_wasm_exception_catching \
     --disable_rtti \
+    --skip_tests \
     --parallel \
     $BUILD_OPTIONS
 
@@ -45,18 +48,19 @@ mkdir -p $OUTPUT_DIR/include
 cp $ONNXRUNTIME_SOURCE_DIR/include/onnxruntime/core/session/*.h $OUTPUT_DIR/include
 
 mkdir -p $OUTPUT_DIR/lib
-cp $BUILD_DIR/Release/libonnxruntime_webassembly.a $OUTPUT_DIR/lib/libonnxruntime.a
+cp $BUILD_DIR/$BUILD_CONFIG/libonnxruntime_webassembly.a $OUTPUT_DIR/lib/libonnxruntime.a
 
-# case $(uname -s) in
-# Darwin | Linux) ;;
-# *) CMAKE_OPTIONS="-G Ninja" ;;
-# esac
+case $(uname -s) in
+Darwin | Linux) ;;
+*) CMAKE_OPTIONS="-G Ninja" ;;
+esac
 
 # cmake \
 #     -S wasm-static_lib/tests \
 #     -B $BUILD_DIR/tests \
 #     -D CMAKE_TOOLCHAIN_FILE=$(pwd)/$EMSDK_DIR/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake \
 #     -D ONNXRUNTIME_SOURCE_DIR=$(pwd)/$ONNXRUNTIME_SOURCE_DIR \
+#     -D ONNXRUNTIME_INCLUDE_DIR=$(pwd)/$OUTPUT_DIR/include \
 #     -D ONNXRUNTIME_LIB_DIR=$(pwd)/$OUTPUT_DIR/lib \
 #     $CMAKE_OPTIONS
 # cmake --build $BUILD_DIR/tests

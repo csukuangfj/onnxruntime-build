@@ -1,6 +1,9 @@
 name: wasm-simd
 
 on:
+  push:
+    branches:
+      - test-v1.23.2
   workflow_dispatch:
     inputs:
       version:
@@ -65,6 +68,8 @@ jobs:
             echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
             exit 1
           fi
+
+          rm -fv protoc*.zip
 
           ./bin/protoc --version
 
