@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test-v1.23.2-2
+      - crt-win
   workflow_dispatch:
     inputs:
       version:
