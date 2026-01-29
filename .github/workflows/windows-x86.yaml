@@ -21,7 +21,7 @@ env:
 
 jobs:
   windows_x86:
-    name: Build onnxruntime lib for Windows x86 on ${{ matrix.os }}
+    name:  ${{ matrix.os }} static CRT ${{ matrix.use_static_crt }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

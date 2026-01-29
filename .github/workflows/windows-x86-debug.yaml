@@ -21,7 +21,7 @@ env:
 
 jobs:
   windows_x86_debug:
-    name: Windows x86 ${{ matrix.build_type }}
+    name: ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
