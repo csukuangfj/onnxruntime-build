@@ -5,25 +5,39 @@ cmake_minimum_required(VERSION 3.28)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-set(ONNX_USE_MSVC_STATIC_RUNTIME ON)
-set(protobuf_MSVC_STATIC_RUNTIME ON)
-set(ABSL_MSVC_STATIC_RUNTIME ON)
-set(onnxruntime_BUILD_SHARED_LIB OFF)
+# see
+# https://www.amd.com/en/developer/resources/technical-articles/2026/a-practical-approach-to-using-sherpa-onnx-production-ready-on-wi.html
+# For more information, see the following articles:
+# Description of CRT selection: https://docs.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library
+# In depth descriptopn of the CRT on Windows: https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features
+# Related errors: https://docs.microsoft.com/en-us/cpp/error-messages/tool-errors/linker-tools-error-lnk2038
+# `CMAKE_MSVC_RUNTIME_LIBRARY` docs: https://cmake.org/cmake/help/latest/variable/CMAKE_MSVC_RUNTIME_LIBRARY.html
 
-# if(NOT BUILD_SHARED_LIBS AND MSVC)
-#   # see https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
-#   # https://stackoverflow.com/questions/14172856/compile-with-mt-instead-of-md-using-cmake
-#   if(MSVC)
-#       add_compile_options(
-#           $<$<CONFIG:>:/MT> #---------|
-#           $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
-#           $<$<CONFIG:Release>:/MT> #--|
-#           $<$<CONFIG:RelWithDebInfo>:/MT>
-#           $<$<CONFIG:MinSizeRel>:/MT>
-#       )
-#   endif()
-# endif()
+
+option(USE_STATIC_CRT "ON to use static CRT (/MT /MTd); OFF to use dynamic (/MD /MDd)" ON)
+
+if(MSVC)
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
+        if(USE_STATIC_CRT)
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug" CACHE STRING "CRT type" FORCE)
+        else()
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL" CACHE STRING "CRT type" FORCE)
+        endif()
+    else()
+        # Release / RelWithDebInfo / MinSizeRel
+        if(USE_STATIC_CRT)
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "CRT type" FORCE)
+        else()
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "CRT type" FORCE)
+        endif()
+    endif()
+
+    set(ONNX_USE_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+    set(protobuf_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+    set(ABSL_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+endif()
+
+set(onnxruntime_BUILD_SHARED_LIB OFF)
 
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 

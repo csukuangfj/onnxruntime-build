@@ -162,7 +162,7 @@ jobs:
 
             ls -lh
 
-            git clone https://huggingface.co/csukuangfj/onnxruntime-libs huggingface
+            git clone https://huggingface.co/csukuangfj2/onnxruntime-libs huggingface
             cd huggingface
             git pull
 
@@ -175,7 +175,7 @@ jobs:
             git status
             git add .
             git commit -m "add $name"
-            git push https://csukuangfj:$HF_TOKEN@huggingface.co/csukuangfj/onnxruntime-libs main
+            git push https://csukuangfj2:$HF_TOKEN@huggingface.co/csukuangfj2/onnxruntime-libs main
 
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
