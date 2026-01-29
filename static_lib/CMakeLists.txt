@@ -7,16 +7,30 @@ project(onnxruntime_static_lib)
 
 # see
 # https://www.amd.com/en/developer/resources/technical-articles/2026/a-practical-approach-to-using-sherpa-onnx-production-ready-on-wi.html
+# For more information, see the following articles:
+# Description of CRT selection: https://docs.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library
+# In depth descriptopn of the CRT on Windows: https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features
+# Related errors: https://docs.microsoft.com/en-us/cpp/error-messages/tool-errors/linker-tools-error-lnk2038
+# `CMAKE_MSVC_RUNTIME_LIBRARY` docs: https://cmake.org/cmake/help/latest/variable/CMAKE_MSVC_RUNTIME_LIBRARY.html
+
 
 option(USE_STATIC_CRT "ON to use static CRT (/MT /MTd); OFF to use dynamic (/MD /MDd)" ON)
 
 if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY
-        $<$<AND:$<CONFIG:Debug>,$<BOOL:${USE_STATIC_CRT}>>:MultiThreadedDebug>
-        $<$<AND:$<CONFIG:Debug>,$<NOT:$<BOOL:${USE_STATIC_CRT}>>>:MultiThreadedDebugDLL>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${USE_STATIC_CRT}>>:MultiThreaded>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${USE_STATIC_CRT}>>>:MultiThreadedDLL>
-    )
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
+        if(USE_STATIC_CRT)
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug" CACHE STRING "CRT type" FORCE)
+        else()
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL" CACHE STRING "CRT type" FORCE)
+        endif()
+    else()
+        # Release / RelWithDebInfo / MinSizeRel
+        if(USE_STATIC_CRT)
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded" CACHE STRING "CRT type" FORCE)
+        else()
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "CRT type" FORCE)
+        endif()
+    endif()
 
     set(ONNX_USE_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
     set(protobuf_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
