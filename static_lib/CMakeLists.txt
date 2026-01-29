@@ -5,25 +5,25 @@ cmake_minimum_required(VERSION 3.28)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-set(ONNX_USE_MSVC_STATIC_RUNTIME ON)
-set(protobuf_MSVC_STATIC_RUNTIME ON)
-set(ABSL_MSVC_STATIC_RUNTIME ON)
-set(onnxruntime_BUILD_SHARED_LIB OFF)
+# see
+# https://www.amd.com/en/developer/resources/technical-articles/2026/a-practical-approach-to-using-sherpa-onnx-production-ready-on-wi.html
 
-# if(NOT BUILD_SHARED_LIBS AND MSVC)
-#   # see https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
-#   # https://stackoverflow.com/questions/14172856/compile-with-mt-instead-of-md-using-cmake
-#   if(MSVC)
-#       add_compile_options(
-#           $<$<CONFIG:>:/MT> #---------|
-#           $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
-#           $<$<CONFIG:Release>:/MT> #--|
-#           $<$<CONFIG:RelWithDebInfo>:/MT>
-#           $<$<CONFIG:MinSizeRel>:/MT>
-#       )
-#   endif()
-# endif()
+option(USE_STATIC_CRT "ON to use static CRT (/MT /MTd); OFF to use dynamic (/MD /MDd)" ON)
+
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+        $<$<AND:$<CONFIG:Debug>,$<BOOL:${USE_STATIC_CRT}>>:MultiThreadedDebug>
+        $<$<AND:$<CONFIG:Debug>,$<NOT:$<BOOL:${USE_STATIC_CRT}>>>:MultiThreadedDebugDLL>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${USE_STATIC_CRT}>>:MultiThreaded>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${USE_STATIC_CRT}>>>:MultiThreadedDLL>
+    )
+
+    set(ONNX_USE_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+    set(protobuf_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+    set(ABSL_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+endif()
+
+set(onnxruntime_BUILD_SHARED_LIB OFF)
 
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 
