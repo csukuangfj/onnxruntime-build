@@ -2,11 +2,17 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "4.0.0")
   set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 endif()
 cmake_minimum_required(VERSION 3.28)
+
+# https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
+cmake_policy(SET CMP0091 NEW)
+
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
 # see
 # https://www.amd.com/en/developer/resources/technical-articles/2026/a-practical-approach-to-using-sherpa-onnx-production-ready-on-wi.html
+# and
+# https://github.com/wolfball/PlenVDB/tree/7e4933191f94a224c7f620457d0acd53111c6111/openvdb/doc
 # For more information, see the following articles:
 # Description of CRT selection: https://docs.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library
 # In depth descriptopn of the CRT on Windows: https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features
@@ -32,10 +38,13 @@ if(MSVC)
         endif()
     endif()
 
-    set(ONNX_USE_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
-    set(protobuf_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
-    set(ABSL_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT})
+    set(ONNX_USE_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT} CACHE BOOL "" FORCE)
+    set(protobuf_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT} CACHE BOOL "" FORCE)
+    set(ABSL_MSVC_STATIC_RUNTIME ${USE_STATIC_CRT} CACHE BOOL "" FORCE)
 endif()
+
+message(STATUS "USE_STATIC_CRT: ${USE_STATIC_CRT}")
+message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
 
 set(onnxruntime_BUILD_SHARED_LIB OFF)
 
