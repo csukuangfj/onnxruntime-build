@@ -1,10 +1,10 @@
-name: windows-x64
+name: windows-x64-debug
 
 on:
   push:
     branches:
       - test-v1.23.2-2
-      - crt-win
+      - win-crt-2
   workflow_dispatch:
     inputs:
       version:
@@ -20,14 +20,15 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  windows_x64:
-    name: ${{ matrix.os }} static CRT ${{ matrix.use_static_crt }}
-    runs-on: ${{ matrix.os }} 
+  windows_x64_debug:
+    name: ${{ matrix.os }} ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2022]
         python-version: ["3.10"]
+        build_type: ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
         use_static_crt: ["ON", "OFF"]
 
     steps:
@@ -43,14 +44,14 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-win-x64-static_lib-static-crt-${{ matrix.use_static_crt }}-${{ env.ONNXRUNTIME_VERSION }}
-          key: onnxruntime-win-x64-static-crt-${{ matrix.use_static_crt }}-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+          path: onnxruntime-win-x64-static_lib-static-crt-${{ matrix.use_static_crt }}-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
+          key: onnxruntime-win-x64-static-crt-${{ matrix.use_static_crt }}-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
 
       - name: ccache
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ matrix.os }}-x64
+          key: ${{ matrix.os }}-x64-${{ matrix.build_type }}
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -125,9 +126,13 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
+          export CMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
           # export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A x64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc'
+          # export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A x64 -Donnxruntime_BUILD_UNIT_TESTS=OFF '
 
           use_static_crt=${{ matrix.use_static_crt }}
+
           if [[ $use_static_crt == ON ]]; then
             export CMAKE_OPTIONS='-DUSE_STATIC_CRT=ON -Dgtest_force_shared_crt=OFF -A x64 -Donnxruntime_BUILD_UNIT_TESTS=OFF '
           else
@@ -149,9 +154,9 @@ jobs:
           use_static_crt=${{ matrix.use_static_crt }}
 
           if [[ $use_static_crt == ON ]]; then
-            dst=onnxruntime-win-x64-static_lib-MT-${{ env.ONNXRUNTIME_VERSION }}
+            dst=onnxruntime-win-x64-static_lib-MT-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           else
-            dst=onnxruntime-win-x64-static_lib-MD-${{ env.ONNXRUNTIME_VERSION }}
+            dst=onnxruntime-win-x64-static_lib-MD-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           fi
 
           mkdir $dst
@@ -163,9 +168,9 @@ jobs:
           use_static_crt=${{ matrix.use_static_crt }}
 
           if [[ $use_static_crt == ON ]]; then
-            dst=onnxruntime-win-x64-static_lib-MT-${{ env.ONNXRUNTIME_VERSION }}
+            dst=onnxruntime-win-x64-static_lib-MT-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           else
-            dst=onnxruntime-win-x64-static_lib-MD-${{ env.ONNXRUNTIME_VERSION }}
+            dst=onnxruntime-win-x64-static_lib-MD-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}
           fi
 
           tar cjvf $dst.tar.bz2 $dst
@@ -204,12 +209,13 @@ jobs:
             cd huggingface
             git pull
 
+
             use_static_crt=${{ matrix.use_static_crt }}
 
             if [[ $use_static_crt == ON ]]; then
-              name=onnxruntime-win-x64-static_lib-MT-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
+              name=onnxruntime-win-x64-static_lib-MT-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
             else
-              name=onnxruntime-win-x64-static_lib-MD-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
+              name=onnxruntime-win-x64-static_lib-MD-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
             fi
 
             version=${{ env.ONNXRUNTIME_VERSION }}
@@ -225,5 +231,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-win-x64-static_lib-static-CRT-${{ matrix.use_static_crt }}
+          name: onnxruntime-win-x64-static_lib-static-CRT-${{ matrix.use_static_crt }}-${{ matrix.build_type }}
           path: onnxruntime-win-x64-static_lib*.tar.bz2
