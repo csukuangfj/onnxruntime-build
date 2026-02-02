@@ -1,4 +1,4 @@
-name: windows-x86-debug
+name: windows-x86
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  windows_x86_debug:
+  windows_x86:
     name: ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }}
     runs-on: ${{ matrix.os }}
     strategy:

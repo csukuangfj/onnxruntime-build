@@ -1,4 +1,4 @@
-name: windows-arm64-debug
+name: windows-arm64
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
     ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
 
 jobs:
-  windows_arm64_debug:
+  windows_arm64:
     name: ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }}
     runs-on: ${{ matrix.os }}
     strategy:
