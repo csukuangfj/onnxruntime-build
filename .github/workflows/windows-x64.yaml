@@ -82,6 +82,44 @@ jobs:
             git diff
           fi
 
+          # cmake/deps.txt for v1.20.1 (and a window of other tagged
+          # ORT versions) pins Eigen via gitlab.com/libeigen/eigen/-/archive/<sha>.zip,
+          # but gitlab.com's archive endpoint silently re-compresses
+          # tarballs every few months and changes the SHA1. Hash check
+          # then fails:
+          #   expected: 'be8be39fdbc6e60e94fa7870b280707069b5b81a'
+          #   actual:   '32b145f525a8308d7ab1c09388b2e288312d8eba'
+          #
+          # See microsoft/onnxruntime issue 19288 and the upstream
+          # workaround on `main` that swapped to github.com/eigen-mirror.
+          # We backport that fix here for v1.20.1: rewrite the eigen
+          # entry in cmake/deps.txt to point at eigen-mirror and to use
+          # the hash the github archive actually serves (computed once
+          # with `curl -sL <url> | sha1sum`).
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} == "1.20.1" ]]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path("cmake/deps.txt")
+          old = p.read_text()
+          new = []
+          for line in old.splitlines(keepends=True):
+              if line.startswith("eigen;"):
+                  new.append(
+                      "eigen;"
+                      "https://github.com/eigen-mirror/eigen/archive/"
+                      "e7248b26a1ed53fa030c5c459f7ea095dfd276ac/"
+                      "eigen-e7248b26a1ed53fa030c5c459f7ea095dfd276ac.zip;"
+                      "61418a349000ba7744a3ad03cf5071f22ebf860a\n"
+                  )
+              else:
+                  new.append(line)
+          p.write_text("".join(new))
+          print("=== patched cmake/deps.txt eigen entry ===")
+          print([l for l in new if l.startswith("eigen;")][0])
+          PY
+            git diff cmake/deps.txt
+          fi
+
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
@@ -252,20 +290,22 @@ jobs:
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
-          # Also produce a copy matching scanlib-rs's expected upstream
-          # naming convention. Upstream csukuangfj/onnxruntime-libs
-          # publishes both `onnxruntime.lib` directory as
-          # `onnxruntime-win-x64-static_lib-1.20.1/` (no MT-Release) and
-          # the tarball as `onnxruntime-win-x64-static_lib-1.20.1.tar.bz2`.
-          # scanlib-rs's cache layer locates `onnxruntime.lib` recursively
-          # under `$cacheDir`, so the internal dir name is tolerated, but
-          # for safety we rename to the upstream layout exactly.
-          short=onnxruntime-win-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          # Also produce a copy matching scanlib-rs's expected naming
+          # convention, with `-mimalloc` suffix so the cache key on the
+          # downstream side invalidates cleanly on the switch from the
+          # non-mimalloc upstream csukuangfj tarball.
+          #
+          # File layout:
+          #   onnxruntime-win-x64-static_lib-1.20.1-mimalloc.tar.bz2
+          #     └── onnxruntime-win-x64-static_lib-1.20.1-mimalloc/
+          #           ├── include/  (ORT C/C++ headers)
+          #           └── lib/onnxruntime.lib  (273M MT-Release single archive)
+          mimalloc=onnxruntime-win-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-mimalloc
           if [[ $use_static_crt == ON && "${{ matrix.build_type }}" == "Release" ]]; then
-            rm -rf "$short"
-            cp -R "$dst" "$short"
-            tar cjvf "$short.tar.bz2" "$short"
-            ls -lh "$short.tar.bz2"
+            rm -rf "$mimalloc"
+            cp -R "$dst" "$mimalloc"
+            tar cjvf "$mimalloc.tar.bz2" "$mimalloc"
+            ls -lh "$mimalloc.tar.bz2"
           fi
 
       # Upstream uploads to csukuangfj/onnxruntime-libs releases via a

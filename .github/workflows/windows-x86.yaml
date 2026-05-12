@@ -72,6 +72,32 @@ jobs:
             git diff
           fi
 
+          # Mirror the v1.20.1 eigen workaround from windows-x64.yaml.
+          # See that file for the gitlab archive hash-drift rationale.
+          if [[ ${{ env.ONNXRUNTIME_VERSION }} == "1.20.1" ]]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path("cmake/deps.txt")
+          old = p.read_text()
+          new = []
+          for line in old.splitlines(keepends=True):
+              if line.startswith("eigen;"):
+                  new.append(
+                      "eigen;"
+                      "https://github.com/eigen-mirror/eigen/archive/"
+                      "e7248b26a1ed53fa030c5c459f7ea095dfd276ac/"
+                      "eigen-e7248b26a1ed53fa030c5c459f7ea095dfd276ac.zip;"
+                      "61418a349000ba7744a3ad03cf5071f22ebf860a\n"
+                  )
+              else:
+                  new.append(line)
+          p.write_text("".join(new))
+          print("=== patched cmake/deps.txt eigen entry ===")
+          print([l for l in new if l.startswith("eigen;")][0])
+          PY
+            git diff cmake/deps.txt
+          fi
+
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         shell: bash
@@ -223,16 +249,13 @@ jobs:
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
-          # Produce an aliased tarball matching the upstream csukuangfj
-          # naming `onnxruntime-win-x86-static_lib-<version>.tar.bz2` so
-          # the existing scanlib-rs download steps work unchanged once
-          # pointed at this fork's release. See windows-x64.yaml.
-          short=onnxruntime-win-x86-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          # See windows-x64.yaml for naming/layout rationale.
+          mimalloc=onnxruntime-win-x86-static_lib-${{ env.ONNXRUNTIME_VERSION }}-mimalloc
           if [[ $use_static_crt == ON && "${{ matrix.build_type }}" == "Release" ]]; then
-            rm -rf "$short"
-            cp -R "$dst" "$short"
-            tar cjvf "$short.tar.bz2" "$short"
-            ls -lh "$short.tar.bz2"
+            rm -rf "$mimalloc"
+            cp -R "$dst" "$mimalloc"
+            tar cjvf "$mimalloc.tar.bz2" "$mimalloc"
+            ls -lh "$mimalloc.tar.bz2"
           fi
 
       # Upstream csukuangfj/onnxruntime-libs upload + HuggingFace mirror
