@@ -252,6 +252,22 @@ jobs:
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
+          # Also produce a copy matching scanlib-rs's expected upstream
+          # naming convention. Upstream csukuangfj/onnxruntime-libs
+          # publishes both `onnxruntime.lib` directory as
+          # `onnxruntime-win-x64-static_lib-1.20.1/` (no MT-Release) and
+          # the tarball as `onnxruntime-win-x64-static_lib-1.20.1.tar.bz2`.
+          # scanlib-rs's cache layer locates `onnxruntime.lib` recursively
+          # under `$cacheDir`, so the internal dir name is tolerated, but
+          # for safety we rename to the upstream layout exactly.
+          short=onnxruntime-win-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          if [[ $use_static_crt == ON && "${{ matrix.build_type }}" == "Release" ]]; then
+            rm -rf "$short"
+            cp -R "$dst" "$short"
+            tar cjvf "$short.tar.bz2" "$short"
+            ls -lh "$short.tar.bz2"
+          fi
+
       # Upstream uploads to csukuangfj/onnxruntime-libs releases via a
       # PAT we don't hold. Replaced with `actions/upload-artifact` below
       # (already present) so that downstream `scanlib-rs` can fetch the

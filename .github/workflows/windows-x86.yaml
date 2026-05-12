@@ -223,6 +223,18 @@ jobs:
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
+          # Produce an aliased tarball matching the upstream csukuangfj
+          # naming `onnxruntime-win-x86-static_lib-<version>.tar.bz2` so
+          # the existing scanlib-rs download steps work unchanged once
+          # pointed at this fork's release. See windows-x64.yaml.
+          short=onnxruntime-win-x86-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          if [[ $use_static_crt == ON && "${{ matrix.build_type }}" == "Release" ]]; then
+            rm -rf "$short"
+            cp -R "$dst" "$short"
+            tar cjvf "$short.tar.bz2" "$short"
+            ls -lh "$short.tar.bz2"
+          fi
+
       # Upstream csukuangfj/onnxruntime-libs upload + HuggingFace mirror
       # steps removed (no PAT, no HF token); fork uploads to its own
       # releases via GITHUB_TOKEN below.
