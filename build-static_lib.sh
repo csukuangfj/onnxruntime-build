@@ -39,12 +39,31 @@ echo "pwd: $PWD"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 
-    # eaglecloud-sec fork (followup#76): cmake/deps.txt for v1.20.1 pins
-    # Eigen via gitlab.com/libeigen/eigen archive endpoint. GitLab
-    # occasionally re-compresses tarballs and changes the SHA1, breaking
+    # eaglecloud-sec fork (followup#76): v1.20.1 source has two issues
+    # that block builds on a recent windows-2022 GitHub-hosted runner
+    # (cmake 4.x, VS 17.14, MSVC STL 14.4x). Patch both in-place after
+    # the submodule re-sync but before cmake configures.
+    #
+    # (a) include/onnxruntime/core/platform/ort_mutex.h uses
+    #     std::chrono::system_clock but only includes <Windows.h> and
+    #     <mutex>. Recent MSVC STL no longer transitively pulls
+    #     <chrono> from <mutex>; build x86 (and likely x64) fails with:
+    #     `error C2039: 'system_clock': is not a member of 'std::chrono'`.
+    #     Fix: insert `#include <chrono>` right after `#include <mutex>`
+    #     on line 7. ORT post-1.20.1 has the matching upstream fix.
+    if grep -q '^#include <mutex>$' include/onnxruntime/core/platform/ort_mutex.h \
+       && ! grep -q '^#include <chrono>$' include/onnxruntime/core/platform/ort_mutex.h; then
+        sed -i.bak '/^#include <mutex>$/a #include <chrono>' \
+            include/onnxruntime/core/platform/ort_mutex.h
+        echo "[ort_mutex-chrono-fix] inserted #include <chrono>"
+        grep -n "include <" include/onnxruntime/core/platform/ort_mutex.h | head -8
+    fi
+
+    # (b) cmake/deps.txt for v1.20.1 pins Eigen via
+    # gitlab.com/libeigen/eigen archive endpoint. GitLab occasionally
+    # re-compresses tarballs and changes the SHA1, breaking
     # FetchContent's URL_HASH check. ORT main has moved to the github
     # eigen-mirror; backport that swap for v1.20.1 specifically.
-    # See microsoft/onnxruntime#19288.
     if [[ "$ONNXRUNTIME_VERSION" == "1.20.1" ]]; then
         python3 - <<'PYEOF'
 from pathlib import Path
