@@ -72,31 +72,10 @@ jobs:
             git diff
           fi
 
-          # Mirror the v1.20.1 eigen workaround from windows-x64.yaml.
-          # See that file for the gitlab archive hash-drift rationale.
-          if [[ ${{ env.ONNXRUNTIME_VERSION }} == "1.20.1" ]]; then
-            python3 - <<'PY'
-          from pathlib import Path
-          p = Path("cmake/deps.txt")
-          old = p.read_text()
-          new = []
-          for line in old.splitlines(keepends=True):
-              if line.startswith("eigen;"):
-                  new.append(
-                      "eigen;"
-                      "https://github.com/eigen-mirror/eigen/archive/"
-                      "e7248b26a1ed53fa030c5c459f7ea095dfd276ac/"
-                      "eigen-e7248b26a1ed53fa030c5c459f7ea095dfd276ac.zip;"
-                      "61418a349000ba7744a3ad03cf5071f22ebf860a\n"
-                  )
-              else:
-                  new.append(line)
-          p.write_text("".join(new))
-          print("=== patched cmake/deps.txt eigen entry ===")
-          print([l for l in new if l.startswith("eigen;")][0])
-          PY
-            git diff cmake/deps.txt
-          fi
+          # Note: the v1.20.1 eigen → eigen-mirror swap is applied
+          # inside `build-static_lib.sh` (after the script's own
+          # submodule re-sync) so a downstream rebuild doesn't see the
+          # patch get clobbered by `git submodule update --recursive`.
 
       - name: Download protoc
         if: steps.cache-build-result.outputs.cache-hit != 'true'

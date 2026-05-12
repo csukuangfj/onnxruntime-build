@@ -39,6 +39,36 @@ echo "pwd: $PWD"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 
+    # eaglecloud-sec fork (followup#76): cmake/deps.txt for v1.20.1 pins
+    # Eigen via gitlab.com/libeigen/eigen archive endpoint. GitLab
+    # occasionally re-compresses tarballs and changes the SHA1, breaking
+    # FetchContent's URL_HASH check. ORT main has moved to the github
+    # eigen-mirror; backport that swap for v1.20.1 specifically.
+    # See microsoft/onnxruntime#19288.
+    if [[ "$ONNXRUNTIME_VERSION" == "1.20.1" ]]; then
+        python3 - <<'PYEOF'
+from pathlib import Path
+p = Path("cmake/deps.txt")
+old = p.read_text()
+out = []
+for line in old.splitlines(keepends=True):
+    if line.startswith("eigen;"):
+        out.append(
+            "eigen;"
+            "https://github.com/eigen-mirror/eigen/archive/"
+            "e7248b26a1ed53fa030c5c459f7ea095dfd276ac/"
+            "eigen-e7248b26a1ed53fa030c5c459f7ea095dfd276ac.zip;"
+            "61418a349000ba7744a3ad03cf5071f22ebf860a\n"
+        )
+    else:
+        out.append(line)
+p.write_text("".join(out))
+print("[eigen-fix] patched cmake/deps.txt:")
+print([l for l in out if l.startswith("eigen;")][0].rstrip())
+PYEOF
+        git diff -- cmake/deps.txt | head -20 || true
+    fi
+
       # The following if has been moved to CMakeLists.txt
       # See also
       # https://github.com/supertone-inc/onnxruntime-build/commit/0ed115ff1d26c3d1b5cb641634c277d190442c1e
