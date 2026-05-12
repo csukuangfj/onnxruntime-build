@@ -1,14 +1,16 @@
 name: windows-x86
 
+# eaglecloud-sec fork: see windows-x64.yaml header for rationale.
+# scanlib-rs's 32-bit slim launcher does not link ORT statically, but the
+# legacy "fallback bundle" cdylib (built with `scanlib-core/ocr-static`)
+# does — and that path is what soak runs catch when launcher/worker IPC
+# fails. So we keep parity between x64 and x86 mimalloc builds.
+
 on:
-  push:
-    branches:
-      - test-v1.23.2-2
-      - win-crt-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.23.2)"
+        description: "Version information (e.g., 1.20.1)"
         required: true
 
 permissions:
@@ -17,19 +19,20 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.23.2' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.20.1' }}
 
 jobs:
   windows_x86:
-    name: ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }}
+    name: ${{ matrix.build_type }} static CRT ${{ matrix.use_static_crt }} mimalloc
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # scanlib-rs only consumes MT + Release for x86. See header.
         os: [windows-2022]
         python-version: ["3.10"]
-        build_type: ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
-        use_static_crt: ["ON", "OFF"]
+        build_type: ["Release"]
+        use_static_crt: ["ON"]
 
     steps:
       - name: Checkout
@@ -129,13 +132,63 @@ jobs:
           # export CMAKE_OPTIONS='-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug> -DONNX_USE_MSVC_STATIC_RUNTIME=ON -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dgtest_force_shared_crt=OFF -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF '
 
           use_static_crt=${{ matrix.use_static_crt }}
+
+          # See windows-x64.yaml for rationale on `-Donnxruntime_USE_MIMALLOC=ON`.
+          # cmake_dependent_option's WIN32 gate is satisfied on both x86 and
+          # x64; the NOT_CUDA/NOT_OPENVINO gates are also satisfied because
+          # csukuangfj's static_lib bundle does not enable either EP.
+
           if [[ $use_static_crt == ON ]]; then
-            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=ON -Dgtest_force_shared_crt=OFF -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF '
+            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=ON -Dgtest_force_shared_crt=OFF -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_USE_MIMALLOC=ON '
           else
-            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF '
+            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -A Win32 -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_USE_MIMALLOC=ON '
           fi
 
           ./build-static_lib.sh
+
+      - name: Verify mimalloc symbols in onnxruntime.lib
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          # Acceptance gate; see windows-x64.yaml twin step.
+          set -e
+          lib=output/static_lib/lib/onnxruntime.lib
+          ls -lh "$lib"
+
+          if [ -f build/static_lib/static_libs.txt ]; then
+            echo "=== static_libs.txt (merged archives) ==="
+            cat build/static_lib/static_libs.txt
+            echo "=== mimalloc lines ==="
+            grep -i mimalloc build/static_lib/static_libs.txt || {
+              echo "FAIL: build/static_lib/static_libs.txt has no mimalloc archive."
+              exit 1
+            }
+          fi
+
+          STRINGS=""
+          for cand in \
+            "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin/llvm-strings.exe" \
+            "/c/Program Files (x86)/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin/llvm-strings.exe" \
+            "/c/Program Files/LLVM/bin/llvm-strings.exe" \
+            ; do
+            if [ -x "$cand" ]; then STRINGS="$cand"; break; fi
+          done
+          if [ -z "$STRINGS" ] && command -v strings >/dev/null 2>&1; then
+            STRINGS=$(command -v strings)
+          fi
+
+          if [ -n "$STRINGS" ]; then
+            echo "=== mimalloc strings in onnxruntime.lib (top 20) ==="
+            "$STRINGS" "$lib" | grep -iE "mimalloc|mi_(malloc|free|heap|init|os_alloc)" | sort -u | head -20 || true
+            count=$("$STRINGS" "$lib" | grep -ciE "mimalloc|mi_(malloc|free|heap|init|os_alloc)" || echo 0)
+            echo "Total mimalloc-related symbol matches: $count"
+            if [ "$count" -lt 5 ]; then
+              echo "FAIL: expected mimalloc symbols in bundled onnxruntime.lib but found only $count matches."
+              exit 1
+            fi
+          else
+            echo "WARN: no `strings` tool available; skipping symbol grep."
+          fi
 
       - name: Collect result
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -170,57 +223,26 @@ jobs:
           tar cjvf $dst.tar.bz2 $dst
           ls -lh
 
-      - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file_glob: true
-          file: "./*.tar.bz2"
-          overwrite: true
-          repo_name: csukuangfj/onnxruntime-libs
-          repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
-          tag: v${{ env.ONNXRUNTIME_VERSION }}
-
-      - name: Publish to huggingface
-        if: steps.cache-build-result.outputs.cache-hit != 'true'
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        uses: nick-fields/retry@v2
-        with:
-          max_attempts: 20
-          timeout_seconds: 200
-          shell: bash
-          command: |
-            git config --global user.email "csukuangfj@gmail.com"
-            git config --global user.name "Fangjun Kuang"
-
-            rm -rf huggingface
-            export GIT_LFS_SKIP_SMUDGE=1
-            export GIT_CLONE_PROTECTION_ACTIVE=false
-
-            ls -lh
-
-            git clone https://huggingface.co/csukuangfj2/onnxruntime-libs huggingface
-            cd huggingface
-            git pull
-
-            use_static_crt=${{ matrix.use_static_crt }}
-            if [[ $use_static_crt == ON ]]; then
-              name=onnxruntime-win-x86-static_lib-MT-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
-            else
-              name=onnxruntime-win-x86-static_lib-MD-${{ matrix.build_type }}-${{ env.ONNXRUNTIME_VERSION }}.tar.bz2
-            fi
-            version=${{ env.ONNXRUNTIME_VERSION }}
-            mkdir -p $version
-
-            cp -v ../$name $version/
-
-            git status
-            git add .
-            git commit -m "add $name"
-            git push https://csukuangfj2:$HF_TOKEN@huggingface.co/csukuangfj2/onnxruntime-libs main
+      # Upstream csukuangfj/onnxruntime-libs upload + HuggingFace mirror
+      # steps removed (no PAT, no HF token); fork uploads to its own
+      # releases via GITHUB_TOKEN below.
 
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-win-x86-static_lib-static-CRT-${{ matrix.use_static_crt }}-${{ matrix.build_type }}
+          name: onnxruntime-win-x86-static_lib-static-CRT-${{ matrix.use_static_crt }}-${{ matrix.build_type }}-mimalloc
           path: onnxruntime-win-x86-static_lib*.tar.bz2
+
+      - name: Upload to fork release v${{ env.ONNXRUNTIME_VERSION }}-mimalloc
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file_glob: true
+          file: "./onnxruntime-win-x86-static_lib*.tar.bz2"
+          overwrite: true
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ env.ONNXRUNTIME_VERSION }}-mimalloc
+          body: |
+            ORT static-lib builds with `onnxruntime_USE_MIMALLOC=ON`.
+            See workflow `.github/workflows/windows-x86.yaml` and
+            scanlib-rs followup#76 for the rationale.
