@@ -46,8 +46,10 @@ $ONNXRUNTIME_SOURCE_DIR/build.sh \
     --build_wasm_static_lib \
     --enable_wasm_simd \
     --enable_wasm_threads \
+    --disable_rtti \
     --skip_tests \
     --parallel \
+    --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF \
     $BUILD_OPTIONS
 
 mkdir -p $OUTPUT_DIR/include
