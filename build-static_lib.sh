@@ -39,6 +39,34 @@ echo "pwd: $PWD"
 
     sed -i.bak '/SOVERSION/d' ./cmake/onnxruntime.cmake
 
+    # Fix: sqnbitgemm_kernel_avx512_2bit.cpp is a portable scalar helper
+    # (no x86 intrinsics) that is shared between the ARM64 and x86_64
+    # targets in a universal2 build.  The x86_64 section sets
+    # set_source_files_properties() with x86 flags (-mfma -mavx512bw ...)
+    # which are global (not per-target) and leak into the arm64 target,
+    # causing: "unsupported option '-mfma' for target 'arm64-apple-darwin'".
+    # Clear those flags so the arm64 build sees no x86 options.
+    if [[ "$CMAKE_OPTIONS" =~ "-DCMAKE_OSX_ARCHITECTURES" ]]; then
+      MLAS_CMAKE="cmake/onnxruntime_mlas.cmake"
+      # Replace the x86 flags on sqnbitgemm_kernel_avx512_2bit.cpp with empty
+      # flags.  The file is pure C++ with no intrinsics so empty flags are safe.
+      python3 -c "
+import re, sys
+with open('cmake/onnxruntime_mlas.cmake') as f:
+    content = f.read()
+# Match the set_source_files_properties for this file (spans two lines)
+content = re.sub(
+    r'(set_source_files_properties\(.+?sqnbitgemm_kernel_avx512_2bit\.cpp\s+PROPERTIES\s+)COMPILE_FLAGS\s+\"[^\"]*\"',
+    r'\1COMPILE_FLAGS \"\"',
+    content,
+    flags=re.DOTALL
+)
+with open('cmake/onnxruntime_mlas.cmake', 'w') as f:
+    f.write(content)
+"
+      echo "✅ Patched $MLAS_CMAKE to clear x86 flags on sqnbitgemm_kernel_avx512_2bit.cpp for arm64."
+    fi
+
       # The following if has been moved to CMakeLists.txt
       # See also
       # https://github.com/supertone-inc/onnxruntime-build/commit/0ed115ff1d26c3d1b5cb641634c277d190442c1e
