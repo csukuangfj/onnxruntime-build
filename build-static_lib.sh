@@ -122,11 +122,17 @@ cmake --install $BUILD_DIR --config $CMAKE_BUILD_TYPE
 
 SKIP_TEST=${SKIP_TEST:-0}
 if [ "$SKIP_TEST" -eq 0 ]; then
+    # Extract -A <platform> from CMAKE_OPTIONS if present (e.g., Win32, x64, ARM64)
+    TEST_PLATFORM_FLAG=""
+    if [[ "$CMAKE_OPTIONS" =~ -A[[:space:]]+([A-Za-z0-9_]+) ]]; then
+        TEST_PLATFORM_FLAG="-A ${BASH_REMATCH[1]}"
+    fi
     cmake \
         -S $SOURCE_DIR/tests \
         -B $BUILD_DIR/tests \
         -D ONNXRUNTIME_INCLUDE_DIR=$(pwd)/$OUTPUT_DIR/include \
-        -D ONNXRUNTIME_LIB_DIR=$(pwd)/$OUTPUT_DIR/lib
+        -D ONNXRUNTIME_LIB_DIR=$(pwd)/$OUTPUT_DIR/lib \
+        $TEST_PLATFORM_FLAG
     cmake --build $BUILD_DIR/tests
     ctest --test-dir $BUILD_DIR/tests --verbose --no-tests=error
 else

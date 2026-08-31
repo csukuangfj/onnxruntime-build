@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
-project(onnxruntime_test C)
+project(onnxruntime_test CXX)
 
 set(ONNXRUNTIME_LIB_DIR "" CACHE PATH "Path to the directory containing the onnxruntime static library")
 set(ONNXRUNTIME_INCLUDE_DIR "" CACHE PATH "Path to the directory containing onnxruntime headers")
 
-add_executable(test_onnxruntime test_onnxruntime.c)
+add_executable(test_onnxruntime test_onnxruntime.cc)
 
 target_include_directories(test_onnxruntime PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
 
@@ -15,7 +15,9 @@ endif()
 
 target_link_libraries(test_onnxruntime PRIVATE ${ONNXRUNTIME_LIB})
 
-if(UNIX AND NOT APPLE)
+if(WIN32)
+  target_link_libraries(test_onnxruntime PRIVATE bcrypt)
+elseif(UNIX AND NOT APPLE)
   target_link_libraries(test_onnxruntime PRIVATE pthread dl m)
 endif()
 
