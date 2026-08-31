@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.28)
 project(onnxruntime_test CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 set(ONNXRUNTIME_LIB_DIR "" CACHE PATH "Path to the directory containing the onnxruntime static library")
 set(ONNXRUNTIME_INCLUDE_DIR "" CACHE PATH "Path to the directory containing onnxruntime headers")
 
 add_executable(test_onnxruntime test_onnxruntime.cc)
+target_compile_features(test_onnxruntime PRIVATE cxx_std_17)
 
 target_include_directories(test_onnxruntime PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
 

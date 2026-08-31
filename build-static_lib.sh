@@ -133,8 +133,8 @@ if [ "$SKIP_TEST" -eq 0 ]; then
         -D ONNXRUNTIME_INCLUDE_DIR=$(pwd)/$OUTPUT_DIR/include \
         -D ONNXRUNTIME_LIB_DIR=$(pwd)/$OUTPUT_DIR/lib \
         $TEST_PLATFORM_FLAG
-    cmake --build $BUILD_DIR/tests
-    ctest --test-dir $BUILD_DIR/tests --verbose --no-tests=error
+    cmake --build $BUILD_DIR/tests --config $CMAKE_BUILD_TYPE
+    ctest --test-dir $BUILD_DIR/tests --build-config $CMAKE_BUILD_TYPE --verbose --no-tests=error
 else
     echo "Skipping test (SKIP_TEST=1)"
 fi
