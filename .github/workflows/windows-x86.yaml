@@ -3,7 +3,7 @@ name: windows-x86
 on:
   push:
     branches:
-      - fix-1.28
+      - fix-1.28-2
   workflow_dispatch:
     inputs:
       version:

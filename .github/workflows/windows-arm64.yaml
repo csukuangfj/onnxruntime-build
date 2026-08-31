@@ -134,6 +134,7 @@ jobs:
             export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
           fi
 
+          export SKIP_TEST=1
           ./build-static_lib.sh
 
       - name: Collect result
