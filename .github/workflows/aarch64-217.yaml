@@ -103,7 +103,6 @@ jobs:
 
               export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF"
               export PARALLEL_JOB_COUNT=1
-              export SKIP_TEST=1
 
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
