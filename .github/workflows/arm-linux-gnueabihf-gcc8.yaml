@@ -1,10 +1,6 @@
 name: arm-linux-gnueabihf-gcc8
 
 on:
-  push:
-    branches:
-      - fix-1.28
-      - fix-for-arm
   workflow_dispatch:
     inputs:
       version:

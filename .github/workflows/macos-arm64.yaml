@@ -1,9 +1,6 @@
 name: macos-arm64
 
 on:
-  push:
-    branches:
-      - fix-1.28
   workflow_dispatch:
     inputs:
       version:
