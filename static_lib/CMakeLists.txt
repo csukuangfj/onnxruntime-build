@@ -110,35 +110,15 @@ bundle_static_library(${PROJECT_NAME}
     cpuinfo
 )
 
-set(FILES_TO_INSTALL
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_float16.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_c_api.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_c_api.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_ep_device_ep_metadata_keys.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_lite_custom_op.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_api.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_cxx_inline.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_run_options_config_keys.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/onnxruntime_session_options_config_keys.h
-    ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/framework/provider_options.h
-)
-foreach(FILE_PATH IN LISTS FILES_TO_INSTALL)
-  if(EXISTS "${FILE_PATH}")
-    install(
-        FILES
-        ${FILE_PATH}
-        TYPE INCLUDE
-    )
-  endif()
-endforeach()
+file(GLOB _session_headers ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/session/*.h)
+file(GLOB _framework_headers ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/framework/*.h)
+file(GLOB _cpu_provider_headers ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/cpu/*.h)
+
+install(FILES ${_session_headers} ${_framework_headers} ${_cpu_provider_headers} TYPE INCLUDE)
 
 if(APPLE)
-  install(
-      FILES
-      ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/coreml/coreml_provider_factory.h
-      TYPE INCLUDE
-  )
+  file(GLOB _coreml_headers ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime/core/providers/coreml/*.h)
+  install(FILES ${_coreml_headers} TYPE INCLUDE)
 endif()
 
 install(
