@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022]
+        os: [windows-11-arm]
         python-version: ["3.10"]
         build_type: ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
         use_static_crt: ["ON", "OFF"]
@@ -130,9 +130,9 @@ jobs:
 
           use_static_crt=${{ matrix.use_static_crt }}
           if [[ $use_static_crt == ON ]]; then
-            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=ON -Dgtest_force_shared_crt=OFF -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
+            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=ON -Dgtest_force_shared_crt=OFF -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
           else
-            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
+            export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
           fi
 
           ./build-static_lib.sh
