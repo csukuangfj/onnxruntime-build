@@ -20,7 +20,9 @@ target_link_libraries(test_onnxruntime PRIVATE ${ONNXRUNTIME_LIB})
 
 if(WIN32)
   target_link_libraries(test_onnxruntime PRIVATE bcrypt)
-elseif(UNIX AND NOT APPLE)
+elseif(APPLE)
+  target_link_libraries(test_onnxruntime PRIVATE "-framework Foundation" "-framework CoreFoundation")
+elseif(UNIX)
   target_link_libraries(test_onnxruntime PRIVATE pthread dl m)
 endif()
 
