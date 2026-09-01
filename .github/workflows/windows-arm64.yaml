@@ -3,12 +3,11 @@ name: windows-arm64
 on:
   push:
     branches:
-      - release-v1.27.1
-      - win-crt-2
+      - fix-1.28
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.27.1)"
+        description: "Version information (e.g., 1.29.0)"
         required: true
 
 permissions:
@@ -17,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.27.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.0' }}
 
 jobs:
   windows_arm64:
@@ -135,6 +134,7 @@ jobs:
             export CMAKE_OPTIONS='-DUSE_STATIC_CRT=OFF -Dgtest_force_shared_crt=ON -A ARM64 -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=/D/a/onnxruntime-build/onnxruntime-build/bin/protoc.exe'
           fi
 
+          export SKIP_TEST=1
           ./build-static_lib.sh
 
       - name: Collect result
@@ -175,7 +175,7 @@ jobs:
         with:
           file_glob: true
           file: "./*.tar.bz2"
-          overwrite: false
+          overwrite: true
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}

@@ -1,10 +1,13 @@
 name: aarch64-linux-gnu
 
 on:
+  push:
+    branches:
+      - fix-1.28
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.27.1)"
+        description: "Version information (e.g., 1.29.0)"
         required: true
 
 permissions:
@@ -13,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.27.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.0' }}
 
 jobs:
   aarch64_linux_gnu:
@@ -137,6 +140,7 @@ jobs:
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
           export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/aarch64-linux-gnu.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
+          export SKIP_TEST=1
           ./build-static_lib.sh
 
       - name: Collect result
@@ -161,7 +165,7 @@ jobs:
         with:
           file_glob: true
           file: "./*.zip"
-          overwrite: false
+          overwrite: true
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}

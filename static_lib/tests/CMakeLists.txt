@@ -1,34 +1,28 @@
-cmake_minimum_required(VERSION 3.26)
-project(tests)
+cmake_minimum_required(VERSION 3.28)
+project(onnxruntime_test CXX)
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+set(ONNXRUNTIME_LIB_DIR "" CACHE PATH "Path to the directory containing the onnxruntime static library")
+set(ONNXRUNTIME_INCLUDE_DIR "" CACHE PATH "Path to the directory containing onnxruntime headers")
 
-add_executable(${PROJECT_NAME}
-    ${ONNXRUNTIME_SOURCE_DIR}/onnxruntime/test/wasm/test_main.cc
-    test_inference.cc
-)
+add_executable(test_onnxruntime test_onnxruntime.cc)
+target_compile_features(test_onnxruntime PRIVATE cxx_std_17)
 
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/519beb0e52c842729b4b53731d27c0e0c32ab4a2.zip
-    FIND_PACKAGE_ARGS NAMES GTest
-    URL_HASH SHA1=4b3c37972e4c1bef1185d46f702082f8772ee73f
-)
-FetchContent_MakeAvailable(googletest)
-target_link_libraries(${PROJECT_NAME} GTest::gtest)
+target_include_directories(test_onnxruntime PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${ONNXRUNTIME_SOURCE_DIR}/include/onnxruntime)
-target_link_directories(${PROJECT_NAME} PRIVATE ${ONNXRUNTIME_LIB_DIR})
-target_link_libraries(${PROJECT_NAME} onnxruntime)
-
-if(APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework Foundation")
-elseif(UNIX)
-    target_link_libraries(${PROJECT_NAME} dl)
+find_library(ONNXRUNTIME_LIB onnxruntime PATHS ${ONNXRUNTIME_LIB_DIR} NO_DEFAULT_PATH)
+if(NOT ONNXRUNTIME_LIB)
+  message(FATAL_ERROR "Could not find onnxruntime library in ${ONNXRUNTIME_LIB_DIR}")
 endif()
 
-file(COPY ${ONNXRUNTIME_SOURCE_DIR}/onnxruntime/test/testdata DESTINATION .)
+target_link_libraries(test_onnxruntime PRIVATE ${ONNXRUNTIME_LIB})
+
+if(WIN32)
+  target_link_libraries(test_onnxruntime PRIVATE bcrypt)
+elseif(APPLE)
+  target_link_libraries(test_onnxruntime PRIVATE "-framework Foundation" "-framework CoreFoundation")
+elseif(UNIX)
+  target_link_libraries(test_onnxruntime PRIVATE pthread dl m)
+endif()
 
 enable_testing()
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+add_test(NAME test_onnxruntime COMMAND test_onnxruntime)

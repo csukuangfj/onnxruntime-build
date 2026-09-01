@@ -3,11 +3,11 @@ name: android-static
 on:
   push:
     branches:
-      - release-v1.27.1
+      - fix-1.28
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.27.1)"
+        description: "Version information (e.g., 1.29.0)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.27.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.0' }}
 
 jobs:
   android-static:
@@ -127,6 +127,7 @@ jobs:
 
           export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$arch -DANDROID_PLATFORM=android-21 -DANDROID_STL=c++_shared"
 
+          export SKIP_TEST=1
           ./build-static_lib.sh
 
       - name: Collect result ${{ matrix.arch }}
@@ -153,7 +154,7 @@ jobs:
         with:
           file_glob: true
           file: "./onnxruntime*.zip"
-          overwrite: false
+          overwrite: true
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}
