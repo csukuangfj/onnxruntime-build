@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.28)
 # https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_LIBRARY.html
 cmake_policy(SET CMP0091 NEW)
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version. Used only for macOS")
 project(onnxruntime_static_lib)
 
 # see

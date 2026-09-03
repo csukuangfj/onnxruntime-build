@@ -3,7 +3,7 @@ name: macos-arm64
 on:
   push:
     branches:
-      - fix-1.28
+      - fix-macos
   workflow_dispatch:
     inputs:
       version:
@@ -131,6 +131,26 @@ jobs:
           zip -r ${dst}.zip $dst/
 
           ls -lh $dst.zip
+
+      - name: Verify deployment target
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          dst=onnxruntime-osx-arm64-static_lib-${ONNXRUNTIME_VERSION}
+          lib=$dst/lib/libonnxruntime.a
+
+          echo "Checking minos of $lib"
+          otool -l $lib | grep -E -A4 '(LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION)' | head -20
+
+          minos=$(otool -l $lib | grep -E -A4 'LC_BUILD_VERSION' | grep minos | awk '{print $2}' | head -1)
+          echo "minos: $minos"
+
+          # CMAKE_OSX_DEPLOYMENT_TARGET is set to 10.15 in CMakeLists.txt
+          if [[ "$minos" != "10.15" && "$minos" != "11.0" ]]; then
+            echo "FAILED: expected minos 10.15, got $minos"
+            exit 1
+          fi
+          echo "PASSED: minos is $minos"
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
