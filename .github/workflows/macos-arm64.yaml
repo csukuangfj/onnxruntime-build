@@ -142,15 +142,22 @@ jobs:
           echo "Checking minos of $lib"
           otool -l $lib | grep -E -A4 '(LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION)' | head -20
 
-          minos=$(otool -l $lib | grep -E -A4 'LC_BUILD_VERSION' | grep minos | awk '{print $2}' | head -1)
-          echo "minos: $minos"
+          # Static libs may contain multiple architectures
+          failed=0
+          while read -r minos; do
+            echo "minos: $minos"
+            # CMAKE_OSX_DEPLOYMENT_TARGET is set to 10.15 in CMakeLists.txt
+            if [[ "$minos" != "10.15" && "$minos" != "11.0" ]]; then
+              echo "FAILED: expected minos 10.15 or 11.0, got $minos"
+              failed=1
+            fi
+          done < <(otool -l $lib | grep -E -A4 'LC_BUILD_VERSION' | grep minos | awk '{print $2}')
 
-          # CMAKE_OSX_DEPLOYMENT_TARGET is set to 10.15 in CMakeLists.txt
-          if [[ "$minos" != "10.15" && "$minos" != "11.0" ]]; then
-            echo "FAILED: expected minos 10.15, got $minos"
+          if [[ $failed -eq 0 ]]; then
+            echo "PASSED"
+          else
             exit 1
           fi
-          echo "PASSED: minos is $minos"
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
