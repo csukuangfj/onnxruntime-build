@@ -3,11 +3,11 @@ name: macos-arm64
 on:
   push:
     branches:
-      - fix-1.28
+      - fix-macos-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.29.0)"
+        description: "Version information (e.g., 1.28.2)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.28.2' }}
 
 jobs:
   macos_arm64:
@@ -132,13 +132,41 @@ jobs:
 
           ls -lh $dst.zip
 
+      - name: Verify deployment target
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          dst=onnxruntime-osx-arm64-static_lib-${ONNXRUNTIME_VERSION}
+          lib=$dst/lib/libonnxruntime.a
+
+          echo "Checking minos of $lib"
+          otool_output=$(otool -l $lib)
+          echo "$otool_output" | grep -E -A4 '(LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION)' | head -20 || true
+
+          # Static libs may contain multiple architectures
+          failed=0
+          while read -r minos; do
+            echo "minos: $minos"
+            # CMAKE_OSX_DEPLOYMENT_TARGET is set to 10.15 in CMakeLists.txt
+            if [[ "$minos" != "10.15" && "$minos" != "11.0" ]]; then
+              echo "FAILED: expected minos 10.15 or 11.0, got $minos"
+              failed=1
+            fi
+          done < <(echo "$otool_output" | grep -E -A4 'LC_BUILD_VERSION' | grep minos | awk '{print $2}')
+
+          if [[ $failed -eq 0 ]]; then
+            echo "PASSED"
+          else
+            exit 1
+          fi
+
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: svenstaro/upload-release-action@v2
         with:
           file_glob: true
           file: "./*.zip"
-          overwrite: true
+          overwrite: false
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}

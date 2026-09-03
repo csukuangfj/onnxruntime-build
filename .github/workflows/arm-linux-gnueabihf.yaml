@@ -3,11 +3,11 @@ name: arm-linux-gnueabihf
 on:
   push:
     branches:
-      - fix-1.28
+      - fix-macos-2
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.29.0)"
+        description: "Version information (e.g., 1.28.2)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.28.2' }}
 
 jobs:
   arm_linux_gnueabihf:
@@ -165,7 +165,7 @@ jobs:
         with:
           file_glob: true
           file: "./*.zip"
-          overwrite: true
+          overwrite: false
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}
