@@ -141,7 +141,7 @@ jobs:
 
           echo "Checking minos of $lib"
           otool_output=$(otool -l $lib)
-          echo "$otool_output" | grep -E -A4 '(LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION)' | head -20
+          echo "$otool_output" | grep -E -A4 '(LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION)' | head -20 || true
 
           # Static libs may contain multiple architectures
           failed=0
