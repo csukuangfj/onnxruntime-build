@@ -3,7 +3,7 @@ name: aarch64-glibc228
 on:
   push:
     branches:
-      - fix-macos
+      - fix-macos-2
   workflow_dispatch:
     inputs:
       version:
@@ -122,7 +122,7 @@ jobs:
         with:
           file_glob: true
           file: "./*.zip"
-          overwrite: true
+          overwrite: false
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}
