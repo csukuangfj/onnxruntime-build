@@ -9,7 +9,7 @@ on:
         type: string
   push:
     branches:
-      - linux2
+      - release-v1.29.1
     tags:
       - v*.*.*
 
