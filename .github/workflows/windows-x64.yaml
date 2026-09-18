@@ -3,11 +3,11 @@ name: windows-x64
 on:
   push:
     branches:
-      - release-v1.29.1
+      - release-v1.30.0
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.29.1)"
+        description: "Version information (e.g., 1.30.0)"
         required: true
 
 permissions:
@@ -16,7 +16,7 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.29.1' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.30.0' }}
 
 jobs:
   windows_x64:
@@ -83,6 +83,9 @@ jobs:
             ls -lh
             file protoc-21.12-win64.zip
             unzip protoc-21.12-win64.zip
+          elif [[ ${{ env.ONNXRUNTIME_VERSION }} =~ 1.[3-9][0-9].[0-9] ]]; then
+            curl -SL -o protoc-33.6-win64.zip https://github.com/protocolbuffers/protobuf/releases/download/v33.6/protoc-33.6-win64.zip
+            unzip protoc-33.6-win64.zip
           else
             echo "Unsupported version ${{ env.ONNXRUNTIME_VERSION }}"
             exit 1
@@ -180,7 +183,7 @@ jobs:
         with:
           file_glob: true
           file: "./*.tar.bz2"
-          overwrite: false
+          overwrite: true
           repo_name: csukuangfj/onnxruntime-libs
           repo_token: ${{ secrets.UPLOAD_GH_SHERPA_ONNX_TOKEN }}
           tag: v${{ env.ONNXRUNTIME_VERSION }}
