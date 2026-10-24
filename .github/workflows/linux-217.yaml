@@ -114,6 +114,23 @@ jobs:
               g++ --version
               ldd --version
 
+              # CMake's compiler probe looks for cc/c++ first, and on
+              # manylinux2014 those resolve to Red Hat SCL devtoolset-10 --
+              # far too old for onnxruntime (needs >= 11.1). The image's gcc
+              # is on PATH but CMake never considers it, so pin CC/CXX to the
+              # gcc built into this image.
+              export CC="$(command -v gcc)"
+              export CXX="$(command -v g++)"
+              echo "CC=$CC"
+              echo "CXX=$CXX"
+              "$CC" -dumpversion
+              case "$CC" in
+                /opt/rh/*)
+                  echo "::error::CC=$CC resolved to devtoolset, not the gcc in this image"
+                  exit 1
+                  ;;
+              esac
+
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"
 
