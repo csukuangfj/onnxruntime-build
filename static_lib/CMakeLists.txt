@@ -60,17 +60,37 @@ set(onnxruntime_BUILD_SHARED_LIB OFF)
 # creates std::filesystem::path objects with one layout while the non-inline
 # members of path (_M_split_cmpts, operator=) come from a libstdc++ built with
 # the other. So we build and publish both variants; see the release job names
-# for the -cxx11-abi-1 artifact.
-set(CXX11_ABI "1" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI (0 or 1). Linux only.")
+# for the -cxx11-abi artifact.
+set(CXX11_ABI "1" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI (0 or 1). GNU libstdc++ only.")
 set_property(CACHE CXX11_ABI PROPERTY STRINGS 0 1)
 
+# _GLIBCXX_USE_CXX11_ABI is a GNU libstdc++ concept. It does not exist for
+# LLVM libc++ (Android NDK r18+, which uses std::__ndk1 and has a single fixed
+# string ABI) nor for Emscripten. Setting it there is a no-op at best, so we
+# only apply it when the target is Linux/libstdc++.
+#
+# Record the decision so build-static_lib.sh can verify the produced archive
+# against the ABI that was actually requested.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   if(NOT CXX11_ABI MATCHES "^[01]$")
     message(FATAL_ERROR "CXX11_ABI must be 0 or 1, got: '${CXX11_ABI}'")
   endif()
   string(APPEND CMAKE_CXX_FLAGS " -D_GLIBCXX_USE_CXX11_ABI=${CXX11_ABI}")
   message(STATUS "_GLIBCXX_USE_CXX11_ABI: ${CXX11_ABI}")
+  set(_cxx11_abi_used "${CXX11_ABI}")
+else()
+  # Targets that don't use GNU libstdc++ have no dual ABI: Android NDK's libc++
+  # (std::__ndk1, a single fixed string ABI), Emscripten, MSVC and Apple's libc++.
+  # There is nothing to choose and nothing to verify, so always use 0 and never
+  # produce a cxx11-abi variant here.
+  if(NOT CXX11_ABI STREQUAL "0")
+    message(STATUS "CXX11_ABI=${CXX11_ABI} ignored: target ${CMAKE_SYSTEM_NAME} has no _GLIBCXX_USE_CXX11_ABI (pinning to 0)")
+  endif()
+  set(CXX11_ABI "0")
+  message(STATUS "_GLIBCXX_USE_CXX11_ABI: 0 (not applicable for target system ${CMAKE_SYSTEM_NAME})")
+  set(_cxx11_abi_used "none")
 endif()
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cxx11-abi.txt "${_cxx11_abi_used}\n")
 
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 

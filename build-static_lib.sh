@@ -130,7 +130,15 @@ cmake --install $BUILD_DIR --config $CMAKE_BUILD_TYPE
 # std::__cxx11::basic_string, the old gcc4-compatible one references the COW
 # std::basic_string (mangled with 'Ss'). Shipping the wrong variant makes
 # consumers abort at startup with "free(): invalid pointer".
-if [ "$(uname -s)" = "Linux" ]; then
+# Only meaningful where the target uses GNU libstdc++. Android (libc++,
+# std::__ndk1) and wasm have no _GLIBCXX_USE_CXX11_ABI at all, and CMake
+# records those targets as "none". Note the *host* is irrelevant: Android
+# and wasm builds run on a Linux runner too.
+abi_expected=none
+if [ -f "$BUILD_DIR/cxx11-abi.txt" ]; then
+    abi_expected=$(tr -d '[:space:]' < "$BUILD_DIR/cxx11-abi.txt")
+fi
+if [ "$abi_expected" = "0" ] || [ "$abi_expected" = "1" ]; then
     lib=$(find "$OUTPUT_DIR" -name 'libonnxruntime.a' | head -1)
     if [ -z "$lib" ]; then
         echo "ERROR: libonnxruntime.a not found under $OUTPUT_DIR" >&2
@@ -140,19 +148,21 @@ if [ "$(uname -s)" = "Linux" ]; then
     new_abi=$(printf '%s\n' "$undef" | grep -c '__cxx11' || true)
     old_abi=$(printf '%s\n' "$undef" | grep -cE '^_ZNSs|^_ZNSb' || true)
     echo "ABI check for $lib"
-    echo "  requested _GLIBCXX_USE_CXX11_ABI: $CXX11_ABI"
+    echo "  requested _GLIBCXX_USE_CXX11_ABI: $abi_expected"
     echo "  std::__cxx11 references (new ABI): $new_abi"
     echo "  old COW std::string references:   $old_abi"
-    if [ "$CXX11_ABI" = "1" ] && [ "$new_abi" -eq 0 ]; then
+    if [ "$abi_expected" = "1" ] && [ "$new_abi" -eq 0 ]; then
         echo "ERROR: CXX11_ABI=1 but the archive has no std::__cxx11 references." >&2
         echo "       The toolchain overrode the ABI (Red Hat SCL devtoolset defaults" >&2
         echo "       to _GLIBCXX_USE_CXX11_ABI=0). Do not ship this artifact." >&2
         exit 1
     fi
-    if [ "$CXX11_ABI" = "0" ] && [ "$old_abi" -eq 0 ]; then
+    if [ "$abi_expected" = "0" ] && [ "$old_abi" -eq 0 ]; then
         echo "ERROR: CXX11_ABI=0 but the archive has no old-COW std::string references." >&2
         exit 1
     fi
+else
+    echo "Skipping _GLIBCXX_USE_CXX11_ABI check (target is not GNU libstdc++: $abi_expected)"
 fi
 
 SKIP_TEST=${SKIP_TEST:-0}
