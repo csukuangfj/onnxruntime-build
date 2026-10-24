@@ -48,6 +48,30 @@ message(STATUS "CMAKE_MSVC_RUNTIME_LIBRARY: ${CMAKE_MSVC_RUNTIME_LIBRARY}")
 
 set(onnxruntime_BUILD_SHARED_LIB OFF)
 
+# Which libstdc++ ABI to build with.
+#
+#   1 = the C++11 ABI (std::__cxx11::basic_string). This is the default for
+#       every stock gcc >= 5.
+#   0 = the old gcc4-compatible COW ABI.
+#
+# Red Hat SCL devtoolset is configured --with-default-libstdcxx-abi=gcc4-compatible,
+# so it defaults to 0, while stock gcc defaults to 1. Mixing the two in a single
+# process corrupts the heap at startup ("free(): invalid pointer"): onnxruntime
+# creates std::filesystem::path objects with one layout while the non-inline
+# members of path (_M_split_cmpts, operator=) come from a libstdc++ built with
+# the other. So we build and publish both variants; see the release job names
+# for the -cxx11-abi-1 artifact.
+set(CXX11_ABI "1" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI (0 or 1). Linux only.")
+set_property(CACHE CXX11_ABI PROPERTY STRINGS 0 1)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  if(NOT CXX11_ABI MATCHES "^[01]$")
+    message(FATAL_ERROR "CXX11_ABI must be 0 or 1, got: '${CXX11_ABI}'")
+  endif()
+  string(APPEND CMAKE_CXX_FLAGS " -D_GLIBCXX_USE_CXX11_ABI=${CXX11_ABI}")
+  message(STATUS "_GLIBCXX_USE_CXX11_ABI: ${CXX11_ABI}")
+endif()
+
 add_definitions(-D_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS)
 
 add_subdirectory(${ONNXRUNTIME_SOURCE_DIR}/cmake onnxruntime EXCLUDE_FROM_ALL)

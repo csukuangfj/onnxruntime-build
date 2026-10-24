@@ -8,10 +8,14 @@ BUILD_DIR=${BUILD_DIR:=build/static_lib}
 OUTPUT_DIR=${OUTPUT_DIR:=output/static_lib}
 ONNXRUNTIME_SOURCE_DIR=${ONNXRUNTIME_SOURCE_DIR:=onnxruntime}
 ONNXRUNTIME_VERSION=${ONNXRUNTIME_VERSION:=$(cat ONNXRUNTIME_VERSION)}
+# 1 = C++11 libstdc++ ABI (stock gcc's default); 0 = old gcc4-compatible COW ABI
+# (Red Hat SCL devtoolset's default). Linux only. See static_lib/CMakeLists.txt.
+CXX11_ABI=${CXX11_ABI:=1}
 CMAKE_OPTIONS=$CMAKE_OPTIONS
 CMAKE_BUILD_OPTIONS=$CMAKE_BUILD_OPTIONS
 
 echo "CMAKE_BUILD_TYPE: $CMAKE_BUILD_TYPE"
+echo "CXX11_ABI: $CXX11_ABI"
 echo "CMAKE_BUILD_OPTIONS: $CMAKE_BUILD_OPTIONS"
 
 case $(uname -s) in
@@ -111,6 +115,7 @@ cmake \
     -D CMAKE_CONFIGURATION_TYPES=$CMAKE_BUILD_TYPE \
     -D CMAKE_INSTALL_PREFIX=$OUTPUT_DIR \
     -D ONNXRUNTIME_SOURCE_DIR=$(pwd)/$ONNXRUNTIME_SOURCE_DIR \
+    -D CXX11_ABI=$CXX11_ABI \
     --compile-no-warning-as-error \
     $CMAKE_OPTIONS
 cmake \
@@ -119,6 +124,36 @@ cmake \
     --parallel $PARALLEL_JOB_COUNT \
     $CMAKE_BUILD_OPTIONS
 cmake --install $BUILD_DIR --config $CMAKE_BUILD_TYPE
+
+# Verify the archive really was built with the requested _GLIBCXX_USE_CXX11_ABI.
+# The two ABIs mangle std::string differently: the C++11 ABI references
+# std::__cxx11::basic_string, the old gcc4-compatible one references the COW
+# std::basic_string (mangled with 'Ss'). Shipping the wrong variant makes
+# consumers abort at startup with "free(): invalid pointer".
+if [ "$(uname -s)" = "Linux" ]; then
+    lib=$(find "$OUTPUT_DIR" -name 'libonnxruntime.a' | head -1)
+    if [ -z "$lib" ]; then
+        echo "ERROR: libonnxruntime.a not found under $OUTPUT_DIR" >&2
+        exit 1
+    fi
+    undef=$(nm --undefined-only "$lib" | awk '{print $NF}' | sort -u)
+    new_abi=$(printf '%s\n' "$undef" | grep -c '__cxx11' || true)
+    old_abi=$(printf '%s\n' "$undef" | grep -cE '^_ZNSs|^_ZNSb' || true)
+    echo "ABI check for $lib"
+    echo "  requested _GLIBCXX_USE_CXX11_ABI: $CXX11_ABI"
+    echo "  std::__cxx11 references (new ABI): $new_abi"
+    echo "  old COW std::string references:   $old_abi"
+    if [ "$CXX11_ABI" = "1" ] && [ "$new_abi" -eq 0 ]; then
+        echo "ERROR: CXX11_ABI=1 but the archive has no std::__cxx11 references." >&2
+        echo "       The toolchain overrode the ABI (Red Hat SCL devtoolset defaults" >&2
+        echo "       to _GLIBCXX_USE_CXX11_ABI=0). Do not ship this artifact." >&2
+        exit 1
+    fi
+    if [ "$CXX11_ABI" = "0" ] && [ "$old_abi" -eq 0 ]; then
+        echo "ERROR: CXX11_ABI=0 but the archive has no old-COW std::string references." >&2
+        exit 1
+    fi
+fi
 
 SKIP_TEST=${SKIP_TEST:-0}
 if [ "$SKIP_TEST" -eq 0 ]; then
