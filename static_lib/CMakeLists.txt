@@ -59,8 +59,9 @@ set(onnxruntime_BUILD_SHARED_LIB OFF)
 # process corrupts the heap at startup ("free(): invalid pointer"): onnxruntime
 # creates std::filesystem::path objects with one layout while the non-inline
 # members of path (_M_split_cmpts, operator=) come from a libstdc++ built with
-# the other. So we build and publish both variants; see the release job names
-# for the -cxx11-abi artifact.
+# the other. So each workflow builds the variant its toolchain can actually
+# produce -- a toolchain that cannot honour the flag (devtoolset) is limited
+# to 0. See the release job names for the -cxx11-abi artifact.
 set(CXX11_ABI "1" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI (0 or 1). GNU libstdc++ only.")
 set_property(CACHE CXX11_ABI PROPERTY STRINGS 0 1)
 
