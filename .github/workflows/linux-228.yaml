@@ -134,6 +134,11 @@ jobs:
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
 
+              # Fail the step if the build fails. Without this the
+              # docker-run-action's shell swallows a non-zero exit from
+              # build-static_lib.sh and the step still reports success.
+              set -e
+
               ./build-static_lib.sh
 
               build_dir=output

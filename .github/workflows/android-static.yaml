@@ -130,6 +130,12 @@ jobs:
 
           export CMAKE_OPTIONS="--compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$arch -DANDROID_PLATFORM=android-21 -DANDROID_STL=c++_shared"
 
+          # Android is always the old ABI; never build a cxx11-abi variant.
+          # The NDK's libc++ has no _GLIBCXX_USE_CXX11_ABI at all, so this is
+          # inert for c++_shared/c++_static, and it pins the value for anyone
+          # who later switches ANDROID_STL to a GNU one.
+          export CXX11_ABI=0
+
           export SKIP_TEST=1
           ./build-static_lib.sh
 

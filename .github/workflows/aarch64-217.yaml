@@ -26,6 +26,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04-arm]
+        # Unlike linux-217 (x86_64), this image has a stock gcc 11 built from
+        # source (ghcr.io/csukuangfj/manylinux2014-aarch64-gcc11), not Red Hat
+        # SCL devtoolset. So -D_GLIBCXX_USE_CXX11_ABI is honoured here and both
+        # ABIs are producible on the same glibc 2.17 base. Only devtoolset is
+        # stuck at 0 -- see linux-217.yaml.
         cxx11_abi: [0, 1]
 
     steps:
@@ -108,6 +113,11 @@ jobs:
 
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
+
+              # Fail the step if the build fails. Without this the
+              # docker-run-action's shell swallows a non-zero exit from
+              # build-static_lib.sh and the step still reports success.
+              set -e
 
               ./build-static_lib.sh
 

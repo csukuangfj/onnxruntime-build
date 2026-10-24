@@ -26,6 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
+        # Both ABIs are available on this glibc 2.17 base: the toolchain is a
+        # stock gcc 11 built from source (manylinux2014-x86_64-gcc11), so
+        # -D_GLIBCXX_USE_CXX11_ABI is honoured. Red Hat SCL devtoolset used to
+        # force 0 and ignore the flag; that is why this used to be [0].
         cxx11_abi: [0, 1]
 
     steps:
@@ -92,38 +96,23 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            image: quay.io/pypa/manylinux2014_x86_64
+            # Stock gcc 11 built from source on the glibc 2.17 manylinux2014
+            # base (test-github-actions/gcc-x86_64). Deliberately NOT Red Hat
+            # SCL devtoolset: that is configured
+            # --with-default-libstdcxx-abi=gcc4-compatible, so its headers force
+            # _GLIBCXX_USE_CXX11_ABI=0 and ignore -D_GLIBCXX_USE_CXX11_ABI=1,
+            # which is why it could never produce the C++11 ABI. See
+            # aarch64-217.yaml for the arm64 twin of this image.
+            image: ghcr.io/csukuangfj/manylinux2014-x86_64-gcc11:latest
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
             run: |
               uname -a
-              gcc --version
-
-              echo "update gcc"
-
-              # See https://github.com/nealef/clefos/issues/9
-              echo "multilib_policy=best" >> /etc/yum.conf
-              echo "skip_missing_names_on_install=False" >> /etc/yum.conf
-              sed -i '/^override_install_langs=/d' /etc/yum.conf
-              yum -y update
-              yum -y install yum-utils curl
-              yum-config-manager --enable extras
-              yum -y install centos-release-scl-rh
-              yum -y install devtoolset-11-binutils devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-gcc-gfortran
-
-              # see https://stackoverflow.com/questions/72904802/can-not-find-required-gcc-version-after-devtoolset-installation
-              ls -lh /opt/rh/devtoolset-11
-
-              source /opt/rh/devtoolset-11/enable
-
-              echo 'which gcc'
               which gcc
-
-              echo 'gcc --version'
               gcc --version
-
-              # find /opt -name "python*"
+              g++ --version
+              ldd --version
 
               PYBIN_DIR=$(find /opt/_internal -type d -path '*/cpython-3.10.*/bin' -print -quit)
               echo "PYBIN_DIR: $PYBIN_DIR"
@@ -147,6 +136,11 @@ jobs:
 
               git config --global --add safe.directory /shared/onnxruntime
               git config --global --add safe.directory /shared
+
+              # Fail the step if the build fails. Without this the
+              # docker-run-action's shell swallows a non-zero exit from
+              # build-static_lib.sh and the step still reports success.
+              set -e
 
               ./build-static_lib.sh
 
