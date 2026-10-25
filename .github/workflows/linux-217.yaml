@@ -3,7 +3,7 @@ name: linux-glibc217
 on:
   push:
     branches:
-      - release-v1.31.0
+      - release-v1.31.0-2
   workflow_dispatch:
     inputs:
       version:
@@ -26,12 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        # x86_64 glibc 2.17 is built with Red Hat SCL devtoolset-11, which is
-        # configured --with-default-libstdcxx-abi=gcc4-compatible: its headers
-        # force _GLIBCXX_USE_CXX11_ABI=0 and ignore -D_GLIBCXX_USE_CXX11_ABI=1.
-        # So the C++11 ABI is not producible here; only ABI 0 is built and the
-        # artifact keeps the untagged name.
-        cxx11_abi: [0]
+        # The glibc 2.17 image is a stock gcc 11 (manylinux2014-x86_64-gcc11),
+        # not Red Hat SCL devtoolset, so -D_GLIBCXX_USE_CXX11_ABI is honoured
+        # and both ABIs are producible on this glibc base.
+        cxx11_abi: [0, 1]
 
     steps:
       - name: Checkout
@@ -41,8 +39,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
-          key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          path: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
+          key: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -97,36 +95,36 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            image: quay.io/pypa/manylinux2014_x86_64
+            # Stock gcc 11 built from source (test-github-actions/gcc-x86_64).
+            # Deliberately not Red Hat SCL devtoolset: it is configured
+            # --with-default-libstdcxx-abi=gcc4-compatible, so it forces
+            # _GLIBCXX_USE_CXX11_ABI=0 and ignores -D_GLIBCXX_USE_CXX11_ABI=1,
+            # which would make the C++11 ABI impossible here.
+            image: ghcr.io/csukuangfj/manylinux2014-x86_64-gcc11:latest
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
             run: |
               uname -a
+
+              # Pin the compilers: CMake probes cc/c++ first and those resolve to
+              # the image's older toolchain. The gcc 11 is on PATH but CMake
+              # would not pick it.
+              export CC="$(command -v gcc)"
+              export CXX="$(command -v g++)"
+              echo "CC=$CC"
+              echo "CXX=$CXX"
+              "$CC" -dumpversion
+              case "$CC" in
+                /opt/gcc-*) ;;
+                *)
+                  echo "::error::CC=$CC is not the gcc built into this image"
+                  exit 1
+                  ;;
+              esac
+
               gcc --version
-
-              echo "update gcc"
-
-              # See https://github.com/nealef/clefos/issues/9
-              echo "multilib_policy=best" >> /etc/yum.conf
-              echo "skip_missing_names_on_install=False" >> /etc/yum.conf
-              sed -i '/^override_install_langs=/d' /etc/yum.conf
-              yum -y update
-              yum -y install yum-utils curl
-              yum-config-manager --enable extras
-              yum -y install centos-release-scl-rh
-              yum -y install devtoolset-11-binutils devtoolset-11-gcc devtoolset-11-gcc-c++ devtoolset-11-gcc-gfortran
-
-              # see https://stackoverflow.com/questions/72904802/can-not-find-required-gcc-version-after-devtoolset-installation
-              ls -lh /opt/rh/devtoolset-11
-
-              source /opt/rh/devtoolset-11/enable
-
-              echo 'which gcc'
-              which gcc
-
-              echo 'gcc --version'
-              gcc --version
+              g++ --version
 
               # find /opt -name "python*"
 
@@ -178,7 +176,7 @@ jobs:
           # Naming rule: the artifact name contains -cxx11-abi if and only if it
           # was built with _GLIBCXX_USE_CXX11_ABI=1. The old gcc4-compatible ABI
           # keeps the untagged name.
-          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          dst=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
           mkdir $dst
           cp -av output/static_lib/* $dst
 
@@ -203,11 +201,14 @@ jobs:
           fi
           dir=${dirs[0]#./}
 
-          # The name must carry the -cxx11-abi marker if and only if the build
-          # is the C++11 ABI.
+          # The name must end in -cxx11-abi-N and N must match the request.
           case "$dir" in
-            *-cxx11-abi) name_abi=1 ;;
-            *)             name_abi=0 ;;
+            *-cxx11-abi-0) name_abi=0 ;;
+            *-cxx11-abi-1) name_abi=1 ;;
+            *)
+              echo "::error::artifact name '$dir' does not end in -cxx11-abi-0 or -cxx11-abi-1"
+              exit 1
+              ;;
           esac
           if [ "$name_abi" != "$abi" ]; then
             echo "::error::artifact name '$dir' does not agree with CXX11_ABI=$abi"
@@ -278,7 +279,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}.zip
+            name=onnxruntime-linux-x64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}.zip
 
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
@@ -293,5 +294,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          name: onnxruntime-linux-x64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
           path: onnxruntime-linux-x64-static_lib*

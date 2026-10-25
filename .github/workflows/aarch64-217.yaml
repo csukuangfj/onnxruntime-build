@@ -3,7 +3,7 @@ name: aarch64-glibc217
 on:
   push:
     branches:
-      - release-v1.31.0
+      - release-v1.31.0-2
   workflow_dispatch:
     inputs:
       version:
@@ -41,8 +41,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
-          key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          path: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
+          key: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
 
       - name: Update ONNX Runtime
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -136,7 +136,7 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          dst=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
           mkdir $dst
           cp -av output/static_lib/* $dst
 
@@ -159,11 +159,14 @@ jobs:
           fi
           dir=${dirs[0]#./}
 
-          # The name must carry the -cxx11-abi marker if and only if the build
-          # is the C++11 ABI.
+          # The name must end in -cxx11-abi-N and N must match the request.
           case "$dir" in
-            *-cxx11-abi) name_abi=1 ;;
-            *)             name_abi=0 ;;
+            *-cxx11-abi-0) name_abi=0 ;;
+            *-cxx11-abi-1) name_abi=1 ;;
+            *)
+              echo "::error::artifact name '$dir' does not end in -cxx11-abi-0 or -cxx11-abi-1"
+              exit 1
+              ;;
           esac
           if [ "$name_abi" != "$abi" ]; then
             echo "::error::artifact name '$dir' does not agree with CXX11_ABI=$abi"
@@ -237,7 +240,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}.zip
+            name=onnxruntime-linux-aarch64-static_lib-${ONNXRUNTIME_VERSION}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}.zip
 
             mkdir -p $version
 
@@ -251,5 +254,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          name: onnxruntime-linux-aarch64-static_lib-${{ env.ONNXRUNTIME_VERSION }}-glibc2_17-cxx11-abi-${{ matrix.cxx11_abi }}
           path: onnxruntime-linux-aarch64-static_lib*

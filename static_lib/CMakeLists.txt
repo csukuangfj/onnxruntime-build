@@ -62,8 +62,11 @@ set(onnxruntime_BUILD_SHARED_LIB OFF)
 # the other. So each workflow builds the variant its toolchain can actually
 # produce -- a toolchain that cannot honour the flag (devtoolset) is limited
 # to 0. See the release job names for the -cxx11-abi artifact.
-set(CXX11_ABI "1" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI (0 or 1). GNU libstdc++ only.")
-set_property(CACHE CXX11_ABI PROPERTY STRINGS 0 1)
+# Empty means "don't touch _GLIBCXX_USE_CXX11_ABI at all" -- use whatever the
+# toolchain defaults to, which is 1 for any stock gcc >= 5. Only pass the
+# macro when a variant is explicitly requested.
+set(CXX11_ABI "" CACHE STRING "Value for _GLIBCXX_USE_CXX11_ABI: 0, 1, or empty for the toolchain default. GNU libstdc++ only.")
+set_property(CACHE CXX11_ABI PROPERTY STRINGS "" 0 1)
 
 # _GLIBCXX_USE_CXX11_ABI is a GNU libstdc++ concept. It does not exist for
 # LLVM libc++ (Android NDK r18+, which uses std::__ndk1 and has a single fixed
@@ -73,12 +76,16 @@ set_property(CACHE CXX11_ABI PROPERTY STRINGS 0 1)
 # Record the decision so build-static_lib.sh can verify the produced archive
 # against the ABI that was actually requested.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  if(NOT CXX11_ABI MATCHES "^[01]$")
-    message(FATAL_ERROR "CXX11_ABI must be 0 or 1, got: '${CXX11_ABI}'")
+  if(CXX11_ABI STREQUAL "")
+    message(STATUS "_GLIBCXX_USE_CXX11_ABI: (toolchain default)")
+    set(_cxx11_abi_used "default")
+  elseif(CXX11_ABI MATCHES "^[01]$")
+    string(APPEND CMAKE_CXX_FLAGS " -D_GLIBCXX_USE_CXX11_ABI=${CXX11_ABI}")
+    message(STATUS "_GLIBCXX_USE_CXX11_ABI: ${CXX11_ABI}")
+    set(_cxx11_abi_used "${CXX11_ABI}")
+  else()
+    message(FATAL_ERROR "CXX11_ABI must be 0, 1, or empty, got: '${CXX11_ABI}'")
   endif()
-  string(APPEND CMAKE_CXX_FLAGS " -D_GLIBCXX_USE_CXX11_ABI=${CXX11_ABI}")
-  message(STATUS "_GLIBCXX_USE_CXX11_ABI: ${CXX11_ABI}")
-  set(_cxx11_abi_used "${CXX11_ABI}")
 else()
   # Targets that don't use GNU libstdc++ have no dual ABI: Android NDK's libc++
   # (std::__ndk1, a single fixed string ABI), Emscripten, MSVC and Apple's libc++.

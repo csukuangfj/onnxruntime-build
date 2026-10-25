@@ -9,13 +9,14 @@ OUTPUT_DIR=${OUTPUT_DIR:=output/static_lib}
 ONNXRUNTIME_SOURCE_DIR=${ONNXRUNTIME_SOURCE_DIR:=onnxruntime}
 ONNXRUNTIME_VERSION=${ONNXRUNTIME_VERSION:=$(cat ONNXRUNTIME_VERSION)}
 # 1 = C++11 libstdc++ ABI (stock gcc's default); 0 = old gcc4-compatible COW ABI
-# (Red Hat SCL devtoolset's default). Linux only. See static_lib/CMakeLists.txt.
-CXX11_ABI=${CXX11_ABI:=1}
+# (Red Hat SCL devtoolset's default); empty = do not touch the macro at all and
+# take the toolchain default. Linux only. See static_lib/CMakeLists.txt.
+CXX11_ABI=${CXX11_ABI:-}
 CMAKE_OPTIONS=$CMAKE_OPTIONS
 CMAKE_BUILD_OPTIONS=$CMAKE_BUILD_OPTIONS
 
 echo "CMAKE_BUILD_TYPE: $CMAKE_BUILD_TYPE"
-echo "CXX11_ABI: $CXX11_ABI"
+echo "CXX11_ABI: ${CXX11_ABI:-(toolchain default)}"
 echo "CMAKE_BUILD_OPTIONS: $CMAKE_BUILD_OPTIONS"
 
 case $(uname -s) in
