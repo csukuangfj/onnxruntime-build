@@ -125,6 +125,16 @@ cmake \
     $CMAKE_BUILD_OPTIONS
 cmake --install $BUILD_DIR --config $CMAKE_BUILD_TYPE
 
+# cmake puts the archives in lib64 on RedHat-based images and in lib on
+# Debian-based ones (manylinux_2_24 has no lib64 at all). Normalise to lib so
+# consumers -- and the test harness below -- always find them in one place.
+if [ -d "$OUTPUT_DIR/lib64" ]; then
+    mkdir -p "$OUTPUT_DIR/lib"
+    mv "$OUTPUT_DIR"/lib64/* "$OUTPUT_DIR/lib/"
+    rmdir "$OUTPUT_DIR/lib64"
+    echo "Normalised $OUTPUT_DIR/lib64 -> $OUTPUT_DIR/lib"
+fi
+
 # Verify the archive really was built with the requested _GLIBCXX_USE_CXX11_ABI.
 # The two ABIs mangle std::string differently: the C++11 ABI references
 # std::__cxx11::basic_string, the old gcc4-compatible one references the COW

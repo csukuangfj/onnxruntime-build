@@ -93,9 +93,11 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
             # Stock gcc 11 built from source on the glibc 2.24 manylinux_2_24
-            # base (test-github-actions/gcc-x86_64-224). The base image's own
-            # compiler is gcc 6, too old for onnxruntime (needs >= 11.1 and
-            # C++20), and Debian 9 has no newer gcc packaged.
+            # base (test-github-actions/gcc-x86_64-224). Two reasons: the base
+            # image's own compiler is gcc 6, too old for onnxruntime (needs
+            # >= 11.1 and C++20), and Debian 9's binutils 2.28 cannot assemble
+            # the AVX-VNNI code MLAS emits. The image builds both gcc and
+            # binutils into the same prefix for that reason.
             image: ghcr.io/csukuangfj/manylinux_2_24-x86_64-gcc11:latest
             options: |
               --volume ${{ github.workspace }}/:/shared/
@@ -166,7 +168,6 @@ jobs:
               chmod a=rwx $build_dir
               ls -lh $build_dir
               ls -lh $build_dir/*
-              mv $build_dir/static_lib/lib64 $build_dir/static_lib/lib
 
               ls -lh $build_dir/static_lib
 

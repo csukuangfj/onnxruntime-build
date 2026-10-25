@@ -52,11 +52,14 @@ jobs:
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         uses: addnab/docker-run-action@v3
         with:
-            # Stock gcc 11 built from source on the glibc 2.24 manylinux_2_24
-            # base (test-github-actions/gcc-aarch64-224). The base image's own
-            # compiler is gcc 6, too old for onnxruntime (needs >= 11.1 and
-            # C++20), and Debian 9 has no newer gcc packaged.
-            image: ghcr.io/csukuangfj/manylinux_2_24-aarch64-gcc11:latest
+            # Stock gcc 12 built from source on the glibc 2.24 manylinux_2_24
+            # base (test-github-actions/gcc-aarch64-224). Two reasons it is 12
+            # and not 11: the base image's own compiler is gcc 6, too old for
+            # onnxruntime (needs >= 11.1 and C++20), and onnxruntime's CMake
+            # hard-fails on aarch64 without the +bf16 ISA extension, which
+            # requires gcc >= 12 *paired with* a recent binutils. The image
+            # builds binutils into the same prefix for that reason.
+            image: ghcr.io/csukuangfj/manylinux_2_24-aarch64-gcc12:latest
             options: |
               --volume ${{ github.workspace }}/:/shared/
             shell: bash
@@ -125,7 +128,6 @@ jobs:
               chmod a=rwx $build_dir
               ls -lh $build_dir
               ls -lh $build_dir/*
-              mv $build_dir/static_lib/lib64 $build_dir/static_lib/lib
 
               ls -lh $build_dir/static_lib
 

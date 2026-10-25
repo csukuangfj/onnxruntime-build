@@ -105,7 +105,6 @@ jobs:
               chmod a=rwx $build_dir
               ls -lh $build_dir
               ls -lh $build_dir/*
-              mv $build_dir/static_lib/lib64 $build_dir/static_lib/lib
 
               ls -lh $build_dir/static_lib
 
