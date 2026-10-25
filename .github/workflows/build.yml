@@ -9,7 +9,7 @@ on:
         type: string
   push:
     branches:
-      - release-v1.30.0
+      - release-v1.31.0
     tags:
       - v*.*.*
 
@@ -120,7 +120,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Python (Linux)
-        if: runner.os == 'Linux' && steps.setup-python.outcome	== 'failure'
+        if: runner.os == 'Linux' && steps.setup-python.outcome == 'failure'
         run: |
           sudo apt-get update -q -y
           sudo apt-get install software-properties-common
@@ -132,7 +132,7 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python${{ env.PYTHON_VERSION }} 1
 
       - name: Install Python (macOS)
-        if: runner.os == 'macOS' && steps.setup-python.outcome	== 'failure'
+        if: runner.os == 'macOS' && steps.setup-python.outcome == 'failure'
         run: brew install python@${{ env.PYTHON_VERSION }}
 
       - name: Setup Node

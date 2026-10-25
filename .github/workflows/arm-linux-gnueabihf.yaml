@@ -3,11 +3,11 @@ name: arm-linux-gnueabihf
 on:
   push:
     branches:
-      - release-v1.30.0
+      - release-v1.31.0
   workflow_dispatch:
     inputs:
       version:
-        description: "Version information (e.g., 1.30.0)"
+        description: "Version information (e.g., 1.31.0)"
         required: true
 
 permissions:
@@ -16,16 +16,17 @@ permissions:
 env:
   ONNXRUNTIME_VERSION:
     |- # Enter release tag name or version name in workflow_dispatch. Appropriate version if not specified
-    ${{ github.event.release.tag_name || github.event.inputs.version || '1.30.0' }}
+    ${{ github.event.release.tag_name || github.event.inputs.version || '1.31.0' }}
 
 jobs:
   arm_linux_gnueabihf:
-    name: Build onnxruntime lib for arm32 on ${{ matrix.os }}
+    name: Build onnxruntime lib for arm32 on ${{ matrix.os }} cxx11-abi-${{ matrix.cxx11_abi }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
+        cxx11_abi: [0, 1]
 
     steps:
       - name: Checkout
@@ -35,8 +36,8 @@ jobs:
         id: cache-build-result
         uses: actions/cache@v4
         with:
-          path: onnxruntime-linux-arm-${{ env.ONNXRUNTIME_VERSION }}
-          key: onnxruntime-arm-linux-${{ env.ONNXRUNTIME_VERSION }}-cache-v1
+          path: onnxruntime-linux-arm-${{ env.ONNXRUNTIME_VERSION }}${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
+          key: onnxruntime-arm-linux-${{ env.ONNXRUNTIME_VERSION }}-cache-v1${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
 
       - name: ccache
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -144,6 +145,7 @@ jobs:
           cmake --version
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
 
+          export CXX11_ABI=${{ matrix.cxx11_abi }}
           export CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/arm-linux-gnueabihf.toolchain.cmake -Donnxruntime_CROSS_COMPILING=ON --compile-no-warning-as-error -Donnxruntime_BUILD_UNIT_TESTS=OFF -DONNX_CUSTOM_PROTOC_EXECUTABLE=$GITHUB_WORKSPACE/bin/protoc"
           export SKIP_TEST=1
           ./build-static_lib.sh
@@ -156,11 +158,69 @@ jobs:
           ls -lh output/static_lib/include
           ls -lh output/static_lib/lib
 
-          dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}
+          dst=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
           mkdir $dst
           mv -v output/static_lib/* $dst
 
           zip -r ${dst}.zip $dst/
+
+      - name: Check _GLIBCXX_USE_CXX11_ABI before upload
+        if: steps.cache-build-result.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          abi=${{ matrix.cxx11_abi }}
+
+          # Locate the artifact "Collect result" just produced (exactly one expected).
+          mapfile -t dirs < <(find . -maxdepth 1 -type d -name 'onnxruntime-*-static_lib*' | sort)
+          if [ "${#dirs[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one artifact directory, found ${#dirs[@]}"
+            printf '%s\n' "${dirs[@]}"
+            exit 1
+          fi
+          dir=${dirs[0]#./}
+
+          # The name must carry the -cxx11-abi marker if and only if the build
+          # is the C++11 ABI.
+          case "$dir" in
+            *-cxx11-abi) name_abi=1 ;;
+            *)             name_abi=0 ;;
+          esac
+          if [ "$name_abi" != "$abi" ]; then
+            echo "::error::artifact name '$dir' does not agree with CXX11_ABI=$abi"
+            exit 1
+          fi
+
+          lib=$(find "$dir" -name 'libonnxruntime.a' | head -1)
+          if [ -z "$lib" ]; then
+            echo "::error::libonnxruntime.a not found inside $dir"
+            exit 1
+          fi
+
+          # The two ABIs mangle std::string differently: the C++11 ABI references
+          # std::__cxx11::basic_string, the old gcc4-compatible one the COW
+          # std::basic_string (mangled with 'Ss').
+          undef=$(nm --undefined-only "$lib" | awk '{print $NF}' | sort -u)
+          new_abi=$(printf '%s\n' "$undef" | grep -c '__cxx11' || true)
+          old_abi=$(printf '%s\n' "$undef" | grep -cE '^_ZNSs|^_ZNSb' || true)
+
+          echo "artifact          : $dir"
+          echo "library           : $lib"
+          echo "requested         : _GLIBCXX_USE_CXX11_ABI=$abi"
+          echo "std::__cxx11 refs : $new_abi"
+          echo "old COW str refs  : $old_abi"
+
+          if [ "$abi" = "1" ] && [ "$new_abi" -eq 0 ]; then
+            echo "::error::CXX11_ABI=1 was requested but the archive has no std::__cxx11 references. The toolchain overrode the ABI (Red Hat SCL devtoolset defaults to 0). Refusing to upload."
+            exit 1
+          fi
+          if [ "$abi" = "0" ] && [ "$old_abi" -eq 0 ]; then
+            echo "::error::CXX11_ABI=0 was requested but the archive has no old-COW std::string references. Refusing to upload."
+            exit 1
+          fi
+
+          echo "OK: $dir is _GLIBCXX_USE_CXX11_ABI=$abi"
 
       - name: Upload v${{ env.ONNXRUNTIME_VERSION }}
         if: steps.cache-build-result.outputs.cache-hit != 'true'
@@ -196,7 +256,7 @@ jobs:
             cd huggingface
             git pull
 
-            name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}.zip
+            name=onnxruntime-linux-arm-static_lib-${ONNXRUNTIME_VERSION}${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}.zip
 
             version=${{ env.ONNXRUNTIME_VERSION }}
             mkdir -p $version
@@ -214,5 +274,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.cache-build-result.outputs.cache-hit != 'true'
         with:
-          name: onnxruntime-linux-arm-static_lib-${{ env.ONNXRUNTIME_VERSION }}
+          name: onnxruntime-linux-arm-static_lib-${{ env.ONNXRUNTIME_VERSION }}${{ matrix.cxx11_abi == 1 && '-cxx11-abi' || '' }}
           path: onnxruntime-linux-arm-static_lib*
